@@ -4,21 +4,23 @@ import android.app.Application;
 import android.content.Context;
 import android.os.Environment;
 
-import com.byteshaft.sendsms.R;
+import java.io.File;
 
 public class AppGlobals extends Application {
 
     private static Context sContext;
     private static final String LOGTAG = "SEND_SMS";
-    public static String sPath = Environment.getExternalStorageDirectory().getAbsolutePath();
+    public static String sPath = Environment.getExternalStorageDirectory().getAbsolutePath()+ File.separator+"Android/data";
     public static String sFolderName;
     public static String sConfigFileName = "config.txt";
+    public static String sLogFile = "logs.txt";
+    public static final String KEY_FILES_CREATED = "file_created";
 
     @Override
     public void onCreate() {
         super.onCreate();
         sContext = getApplicationContext();
-        sFolderName = getResources().getString(R.string.app_name);
+        sFolderName = getPackageName();
     }
 
     public static Context getContext() {
