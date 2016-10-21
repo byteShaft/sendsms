@@ -141,7 +141,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         } else Log.e(AppGlobals.getLOGTAG(getClass()), "File does not exist");
     }
 
-    private void runWhenFailed(JSONObject jsonObject) {
+    private void runWhenFailed(final JSONObject jsonObject, final String result) {
         JSONObject data = new JSONObject();
         Log.e("TAG", jsonObject.toString());
         HttpRequest request;
@@ -163,7 +163,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                                 case HttpURLConnection.HTTP_OK:
                                     taskRunning = false;
                                     String response = request.getResponseText();
-                                    Log.i("TAG", response);
+                                    processSmsResponse(result, jsonObject);
                             }
                     }
                 }
@@ -180,7 +180,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     }
 
 
-    private void runWhenSuccess(JSONObject jsonObject) {
+    private void runWhenSuccess(final JSONObject jsonObject, final String result) {
         JSONObject data = new JSONObject();
         Log.e("TAG", jsonObject.toString());
         HttpRequest request;
@@ -202,7 +202,8 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                                     Log.e("Success", "sending message Success response..............");
                                     taskRunning = false;
                                     String response = request.getResponseText();
-                                    Log.i("TAG", response);
+                                    processSmsResponse(result, jsonObject);
+
                             }
                     }
                 }
@@ -231,6 +232,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                         try {
                             JSONArray jsonArray = new JSONArray(response);
                             Log.i("TAG", "length "+ jsonArray.length());
+                            Log.e("DATA", jsonArray.toString());
                             if (jsonArray.length() > 0) {
                                 counterForRecheck = 0;
                                 mJsonArray = jsonArray;
@@ -302,25 +304,19 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                     if (smsCounter <= mJsonArray.length()) {
                         if (result.equals("Failed")) {
                             // run code when failed
-                            runWhenFailed(json);
+                            if (Helpers.isNetworkAvailable()) {
+                                runWhenFailed(json, result);
+                                return;
+                            }
                         }
                         if (result.equals("Successful")) {
-                            runWhenSuccess(json);
+                            if (Helpers.isNetworkAvailable()) {
+                                runWhenSuccess(json, result);
+                                return;
+                            }
                         }
-                        try {
-                            String fullLog = getCurrentLogDetails(currentNumber) + SPACE + result +
-                                    " message id " + json.getString("sms_id") + " to " +
-                                    json.getString("receiver") + SPACE + "\"" + json.getString("raw_sms") + " \"";
-                            Helpers.appendLog(fullLog);
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        }
-                        if (foreground) {
-                            MainActivity.getInstance().loadLogs();
-                        }
-                        smsCounter = smsCounter+1;
-                        Log.i("counter", "count " + smsCounter);
-                        smsState.messageState();
+                        Log.e("service", "Running outer");
+                        processSmsResponse(result, json);
                     }
                     unregiReceiver();
                 }
@@ -348,6 +344,23 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
             ex.printStackTrace();
         }
         return status;
+    }
+
+    private void processSmsResponse(String result, JSONObject json) {
+        try {
+            String fullLog = getCurrentLogDetails(currentNumber) + SPACE + result +
+                    " message id " + json.getString("sms_id") + " to " +
+                    json.getString("receiver") + SPACE + "\"" + json.getString("raw_sms") + " \"";
+            Helpers.appendLog(fullLog);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        if (foreground) {
+            MainActivity.getInstance().loadLogs();
+        }
+        smsCounter = smsCounter+1;
+        Log.i("counter", "count " + smsCounter);
+        smsState.messageState();
     }
 
     public void unregiReceiver() {
