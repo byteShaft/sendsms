@@ -1,7 +1,10 @@
 package com.byteshaft.sendsms.utils;
 
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.media.MediaScannerConnection;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.preference.PreferenceManager;
 import android.util.Log;
@@ -12,7 +15,9 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 
 import static com.byteshaft.sendsms.utils.AppGlobals.sPath;
 
@@ -30,14 +35,15 @@ public class Helpers {
     }
 
     public static void appendLog(String log) {
-        String logFile = AppGlobals.sPath + File.separator + AppGlobals.sFolderName + File.separator
-                + AppGlobals.sLogFile;
-        File file = new File(logFile);
+        Log.i("TAG" , getLogFile());
+        File file = new File(getLogFile());
         if (!file.exists()) {
-            writeLogs(log);
+            Log.e("if", "File not exist");
+            ifFileNotExist(log);
         } else {
-            file.mkdirs();
+            Log.e("if", "File exist");
             writeLogs(log);
+
         }
     }
 
@@ -48,7 +54,7 @@ public class Helpers {
 
     public static String getLogFile() {
         return sPath + File.separator + AppGlobals.sFolderName + File.separator
-                + AppGlobals.sLogFile;
+                + getFileNameSP()+".txt";
     }
 
     public static void createFileInsideAppFolder() {
@@ -61,8 +67,6 @@ public class Helpers {
                 writer.append("{\"server_address\":\"http://test-ws.blahovec.cz/\"," +
                         "\"api_key\":\"JLKNVImNXDPQp5blCQm6iOxfWqSzFSBt\"," +
                         "\"parameters\":\"{\'queue_name\': \'PRAHA\'}\"," +
-                        "\"min_sending_interval\": \"10\"," +
-                        "\"max_sending_interval\":\"30\"," +
                         "\"command\": \"sms_outbox_unsent_list\""+
                         "}");
                 writer.flush();
@@ -83,6 +87,7 @@ public class Helpers {
 
             }
         });
+        saveBooleanToSp(AppGlobals.KEY_FILES_CREATED, true);
     }
 
 
@@ -100,10 +105,19 @@ public class Helpers {
         return sharedPreferences.getBoolean(key, false);
     }
 
+    public static void saveFileName(String value) {
+        SharedPreferences sharedPreferences = getPreferenceManager();
+        sharedPreferences.edit().putString("log_file", "LOG_"+value).commit();
+    }
+
+    public static String getFileNameSP() {
+        SharedPreferences sharedPreferences = getPreferenceManager();
+        return sharedPreferences.getString("log_file", "");
+    }
+
     private static void writeLogs(String log) {
         try {
-            FileOutputStream writeLogFile = new FileOutputStream(AppGlobals.sPath + File.separator
-                    + AppGlobals.sFolderName + File.separator + AppGlobals.sLogFile ,true);
+            FileOutputStream writeLogFile = new FileOutputStream(Helpers.getLogFile() ,true);
             OutputStreamWriter outputStreamWriter = new OutputStreamWriter(writeLogFile);
             outputStreamWriter.append(log +"\n");
             outputStreamWriter.close();
@@ -113,6 +127,37 @@ public class Helpers {
         } catch (IOException e) {
 
         }
+    }
+
+    private static void ifFileNotExist(String log){
+        FileWriter writer;
+         String path = sPath + File.separator + AppGlobals.sFolderName ;
+        try {
+            File file = new File(path, getFileNameSP()+".txt");
+            writer = new FileWriter(file);
+            writer.append(log);
+            writer.flush();
+            writer.close();
+            file.setReadable(true);
+            file.setWritable(true);
+            toBeScanned.add(file.getAbsolutePath());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static String getCurrentDateAndTime() {
+        Calendar c = Calendar.getInstance();
+        SimpleDateFormat df = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss");
+        return df.format(c.getTime());
+
+    }
+
+    public static boolean isNetworkAvailable() {
+        ConnectivityManager cm = (ConnectivityManager)
+                AppGlobals.getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = cm.getActiveNetworkInfo();
+        return networkInfo != null && networkInfo.isConnected();
     }
 
 }
