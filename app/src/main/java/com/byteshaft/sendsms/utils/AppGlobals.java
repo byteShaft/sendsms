@@ -13,8 +13,8 @@ public class AppGlobals extends Application {
     public static String sPath = Environment.getExternalStorageDirectory().getAbsolutePath()+ File.separator+"Android/data";
     public static String sFolderName;
     public static String sConfigFileName = "config.txt";
-    public static String sLogFile = "logs.txt";
     public static final String KEY_FILES_CREATED = "file_created";
+    public static final String KEY_SERVICE_STATE = "service_state";
 
     @Override
     public void onCreate() {
@@ -28,7 +28,7 @@ public class AppGlobals extends Application {
     }
 
     public static String getLOGTAG(Class aclass) {
-        return LOGTAG + aclass.getSimpleName();
+        return LOGTAG + aclass.getSimpleName() + " ";
     }
 
 

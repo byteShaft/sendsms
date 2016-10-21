@@ -10,7 +10,19 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.byteshaft.sendsms.MainActivity">
 
+    <Switch
+        android:text="Start Service"
+        android:textSize="16sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:id="@+id/service_switch"
+        android:layout_margin="4dp"/>
+
     <ScrollView
+        android:id="@+id/scroll_view"
+        android:layout_below="@+id/service_switch"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_centerVertical="true"
@@ -26,4 +38,5 @@
                 android:layout_height="wrap_content" />
         </LinearLayout>
     </ScrollView>
+
 </RelativeLayout>
