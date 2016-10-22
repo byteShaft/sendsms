@@ -234,12 +234,16 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                             Log.i("TAG", "length "+ jsonArray.length());
                             Log.e("DATA", jsonArray.toString());
                             if (jsonArray.length() > 0) {
+                                Helpers.appendLog(getCurrentLogDetails("") +
+                                        String.format(" Received %d SMS to send \n", jsonArray.length()));
+                                if (foreground) {
+                                    MainActivity.getInstance().loadLogs();
+                                }
                                 counterForRecheck = 0;
                                 mJsonArray = jsonArray;
                                 smsCounter = 0;
                                 sendSMS();
                             } else {
-                                boolean value = counterForRecheck < 3;
                                 Log.i("TAG", "else part" + counterForRecheck);
                                 if (counterForRecheck < 3) {
                                     counterForRecheck = counterForRecheck+1;
@@ -285,8 +289,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                             Log.i("TAG", "OK");
                             break;
                         case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
-                            result = "Failed" + " Error Code " +
-                                    SmsManager.RESULT_ERROR_GENERIC_FAILURE;
+                            result = "Failed";
                             Log.i("TAG", "Failed");
                             break;
                         case SmsManager.RESULT_ERROR_RADIO_OFF:
@@ -305,7 +308,8 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                         if (result.equals("Failed")) {
                             // run code when failed
                             if (Helpers.isNetworkAvailable()) {
-                                runWhenFailed(json, result);
+                                runWhenFailed(json, result + " Error Code " +
+                                        SmsManager.RESULT_ERROR_GENERIC_FAILURE);
                                 return;
                             }
                         }
@@ -381,7 +385,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         Log.i("TAG", String.valueOf(exception.getCause()));
     }
 
-    private String getCurrentLogDetails(String currentNumber) {
+    public String getCurrentLogDetails(String currentNumber) {
         String log = null;
         Uri mSmsSentQueryUri = Uri.parse("content://sms/sent");
         Cursor cursor1 = getContentResolver().query(mSmsSentQueryUri, new String[]{"_id", "thread_id", "address", "person", "date", "body", "type"}, null, null, null);
@@ -452,6 +456,10 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
             Log.e("TAG", "Matched");
             if (!taskRunning) {
                 Log.e("TAG", "Task not running");
+                Helpers.appendLog(getCurrentLogDetails("") +  " No SMS to send\n");
+                if (foreground) {
+                    MainActivity.getInstance().loadLogs();
+                }
                 new android.os.Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {

@@ -35,7 +35,12 @@ public class MessageReceiver extends BroadcastReceiver {
                         Log.i("TAG", msg_from + " "+ msgBody);
                         if (SendSmsService.getInstance() != null && Helpers.getBooleanFromSp(
                                 AppGlobals.KEY_SERVICE_STATE)) {
+                            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("")
+                                    + " Received New Sms From "+ msg_from +" \""+ msgBody+ "\" \n");
                             SendSmsService.smsTobeUpload.put(msg_from, msgBody);
+                            if (MainActivity.foreground) {
+                                MainActivity.getInstance().loadLogs();
+                            }
                         }
                     }
                     if (Helpers.isNetworkAvailable()) {
