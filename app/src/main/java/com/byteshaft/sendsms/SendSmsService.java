@@ -16,6 +16,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.byteshaft.requests.HttpRequest;
+import com.byteshaft.sendsms.utils.AlarmHelpers;
 import com.byteshaft.sendsms.utils.AppGlobals;
 import com.byteshaft.sendsms.utils.Helpers;
 
@@ -57,7 +58,6 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     private BroadcastReceiver deliverReceiver;
     private boolean serviceRunning = false;
     public static HashMap<String, String> smsTobeUpload;
-    private static int counterForRecheck = 0;
 
     public static SendSmsService getInstance() {
         return instance;
@@ -71,7 +71,6 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         smsTobeUpload = new HashMap<>();
-        counterForRecheck = 0;
         smsState = this;
         instance = this;
         startService();
@@ -239,16 +238,11 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                                 if (foreground) {
                                     MainActivity.getInstance().loadLogs();
                                 }
-                                counterForRecheck = 0;
                                 mJsonArray = jsonArray;
                                 smsCounter = 0;
                                 sendSMS();
                             } else {
-                                Log.i("TAG", "else part" + counterForRecheck);
-                                if (counterForRecheck < 3) {
-                                    counterForRecheck = counterForRecheck+1;
-                                    getSmsAndSend();
-                                }
+                                AlarmHelpers.setAlarm();
                             }
                         } catch (JSONException e) {
                             e.printStackTrace();
@@ -286,7 +280,6 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                     switch (getResultCode()) {
                         case Activity.RESULT_OK:
                             result = "Successful";
-                            Log.i("TAG", "OK");
                             break;
                         case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
                             result = "Failed";
@@ -306,6 +299,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                     Log.i("TAG", "mJsonArray " + mJsonArray.length());
                     if (smsCounter <= mJsonArray.length()) {
                         if (result.equals("Failed")) {
+                            Log.e("TAG", "Failed");
                             // run code when failed
                             if (Helpers.isNetworkAvailable()) {
                                 runWhenFailed(json, result + " Error Code " +
@@ -338,9 +332,9 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
             registerReceiver(deliverReceiver, new IntentFilter(DELIVERED));
 
             SmsManager smsManager = SmsManager.getDefault();
-            smsManager.sendTextMessage("03448797786", null, json.getString("raw_sms"), sentPI,
+            smsManager.sendTextMessage(json.getString("receiver"), null, json.getString("raw_sms"), sentPI,
                     deliverPI);
-            currentNumber = "03448797786";
+            currentNumber = json.getString("receiver");
         } catch (Exception ex) {
             Toast.makeText(getApplicationContext(),
                     ex.getMessage().toString(), Toast.LENGTH_SHORT)

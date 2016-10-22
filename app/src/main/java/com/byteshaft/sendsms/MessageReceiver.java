@@ -45,6 +45,10 @@ public class MessageReceiver extends BroadcastReceiver {
                     }
                     if (Helpers.isNetworkAvailable()) {
                         SendSmsService.runWhenMessageReceived();
+                    } else {
+                        Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("")
+                                + String.format(" Received %d messages to sent \n",
+                                SendSmsService.smsTobeUpload.size()));
                     }
                 }catch(Exception e){
 //                            Log.d("Exception caught",e.getMessage());
