@@ -19,11 +19,8 @@ public class AlarmHelpers  {
     private static AlarmManager mAlarmManager;
     private static PendingIntent mPendingIntent;
 
-    public AlarmHelpers() {
-        mAlarmManager = getAlarmManager();
-    }
-
     public static void setAlarm() {
+        mAlarmManager = getAlarmManager();
         final int ONE_SECOND = 1000;
         final int ONE_MINUTE = ONE_SECOND * 60;
         setAlarm(ONE_MINUTE);
@@ -51,7 +48,7 @@ public class AlarmHelpers  {
         }
     }
 
-    private AlarmManager getAlarmManager() {
+    private static AlarmManager getAlarmManager() {
         return (AlarmManager) AppGlobals.getContext().getSystemService(Context.ALARM_SERVICE);
     }
 

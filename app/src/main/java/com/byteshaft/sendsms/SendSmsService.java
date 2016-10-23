@@ -30,6 +30,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
@@ -57,7 +58,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     private BroadcastReceiver sendReceiver;
     private BroadcastReceiver deliverReceiver;
     private boolean serviceRunning = false;
-    public static HashMap<String, String> smsTobeUpload;
+    public static HashMap<String, ArrayList<String>> smsTobeUpload;
 
     public static SendSmsService getInstance() {
         return instance;
@@ -157,11 +158,12 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 public void onReadyStateChange(HttpRequest request, int readyState) {
                     switch (readyState) {
                         case HttpRequest.STATE_DONE:
-                            Log.i(AppGlobals.getLOGTAG(getClass()), "STATE_DONE");
+                            Log.i(AppGlobals.getLOGTAG(getClass()), "runWhenFailed STATE_DONE");
                             switch (request.getStatus()) {
                                 case HttpURLConnection.HTTP_OK:
                                     taskRunning = false;
                                     String response = request.getResponseText();
+                                    Log.i(AppGlobals.getLOGTAG(getClass()), " "+ response);
                                     processSmsResponse(result, jsonObject);
                             }
                     }
@@ -195,12 +197,13 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 public void onReadyStateChange(HttpRequest request, int readyState) {
                     switch (readyState) {
                         case HttpRequest.STATE_DONE:
-                            Log.i(AppGlobals.getLOGTAG(getClass()), "STATE_DONE");
+                            Log.i(AppGlobals.getLOGTAG(getClass()), " runWhenSuccess STATE_DONE");
                             switch (request.getStatus()) {
                                 case HttpURLConnection.HTTP_OK:
                                     Log.e("Success", "sending message Success response..............");
                                     taskRunning = false;
                                     String response = request.getResponseText();
+                                    Log.i(AppGlobals.getLOGTAG(getClass()), " "+ response);
                                     processSmsResponse(result, jsonObject);
 
                             }
@@ -478,46 +481,47 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 e.printStackTrace();
             }
         }
-
     }
 
     public static void runWhenMessageReceived() {
         JSONObject data = new JSONObject();
         if (smsTobeUpload.size() > 0) {
-            for (Map.Entry<String, String> sms : smsTobeUpload.entrySet()) {
-                HttpRequest request;
-                try {
-                    data.put("api_key", api_key);
-                    data.put("command", "sms_inbox_store_received_message");
-                    JSONObject params = new JSONObject();
-                    params.put("sender", sms.getKey());
-                    params.put("raw_sms", sms.getValue());
-                    data.put("parameters", params);
-                    request = new HttpRequest(AppGlobals.getContext());
-                    request.setOnReadyStateChangeListener(new HttpRequest.OnReadyStateChangeListener() {
-                        @Override
-                        public void onReadyStateChange(HttpRequest request, int readyState) {
-                            switch (readyState) {
-                                case HttpRequest.STATE_DONE:
-                                    Log.i(AppGlobals.getLOGTAG(getClass()), "STATE_DONE");
-                                    switch (request.getStatus()) {
-                                        case HttpURLConnection.HTTP_OK:
-                                            Log.e("Response", "sending message receiver Response..............");
-                                            taskRunning = false;
-                                            String response = request.getResponseText();
-                                            Log.i("TAG", response);
-                                    }
+            for (Map.Entry<String, ArrayList<String>> sms : smsTobeUpload.entrySet()) {
+                for (String message : sms.getValue()) {
+                    HttpRequest request;
+                    try {
+                        data.put("api_key", api_key);
+                        data.put("command", "sms_inbox_store_received_message");
+                        JSONObject params = new JSONObject();
+                        params.put("sender", sms.getKey());
+                        params.put("raw_sms", message);
+                        data.put("parameters", params);
+                        request = new HttpRequest(AppGlobals.getContext());
+                        request.setOnReadyStateChangeListener(new HttpRequest.OnReadyStateChangeListener() {
+                            @Override
+                            public void onReadyStateChange(HttpRequest request, int readyState) {
+                                switch (readyState) {
+                                    case HttpRequest.STATE_DONE:
+                                        Log.i(AppGlobals.getLOGTAG(getClass()), "STATE_DONE");
+                                        switch (request.getStatus()) {
+                                            case HttpURLConnection.HTTP_OK:
+                                                Log.e("Response", "sending message receiver Response..............");
+                                                taskRunning = false;
+                                                String response = request.getResponseText();
+                                                Log.i("TAG", response);
+                                        }
+                                }
                             }
-                        }
-                    });
-                    request.open("POST", url);
-                    request.setTimeout(20000);
-                    request.setRequestHeader("Content-Type", "application/json");
-                    Log.e("TAG", data.toString());
-                    request.send(data.toString());
-                    Log.e("SEND", "sending message receiver request..............");
-                } catch (JSONException e) {
-                    e.printStackTrace();
+                        });
+                        request.open("POST", url);
+                        request.setTimeout(20000);
+                        request.setRequestHeader("Content-Type", "application/json");
+                        Log.e("TAG", data.toString());
+                        request.send(data.toString());
+                        Log.e("SEND", "sending message receiver request..............");
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
             smsTobeUpload = new HashMap<>();
