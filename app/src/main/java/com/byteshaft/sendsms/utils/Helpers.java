@@ -67,6 +67,8 @@ public class Helpers {
                 writer.append("{\"server_address\":\"http://test-ws.blahovec.cz/\"," +
                         "\"api_key\":\"JLKNVImNXDPQp5blCQm6iOxfWqSzFSBt\"," +
                         "\"parameters\":\"{\'queue_name\': \'PRAHA\'}\"," +
+                        "\"min_sending_interval\": \"10\"," +
+                        "\"max_sending_interval\":\"30\"," +
                         "\"command\": \"sms_outbox_unsent_list\""+
                         "}");
                 writer.flush();

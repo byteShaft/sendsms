@@ -24,6 +24,9 @@ public class MessageReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         Log.i("TAG", "SMS RECEIVER");
+        if (SendSmsService.getInstance() == null) {
+            context.startService(new Intent(context, SendSmsService.class));
+        }
         if (intent.getAction().equals("android.provider.Telephony.SMS_RECEIVED")) {
             Bundle bundle = intent.getExtras();           //---get the SMS message passed in---
             SmsMessage[] msgs;
@@ -40,8 +43,8 @@ public class MessageReceiver extends BroadcastReceiver {
                         Log.i("TAG", msg_from + " " + msgBody);
                         if (SendSmsService.getInstance() != null && Helpers.getBooleanFromSp(
                                 AppGlobals.KEY_SERVICE_STATE)) {
-                            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("")
-                                    + " Received New Sms From " + msg_from + " \"" + msgBody + "\" \n");
+//                            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("")
+//                                    + " Received New Sms From " + msg_from + " \"" + msgBody + "\" \n");
                             Log.i("TAG","Condition");
                             if (SendSmsService.smsTobeUpload.containsKey(msg_from)) {
                                 Log.i("TAG"," if Condition");
