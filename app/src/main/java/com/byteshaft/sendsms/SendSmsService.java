@@ -16,6 +16,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.byteshaft.requests.HttpRequest;
+import com.byteshaft.sendsms.utils.AlarmHelpers;
 import com.byteshaft.sendsms.utils.AppGlobals;
 import com.byteshaft.sendsms.utils.Helpers;
 
@@ -29,9 +30,12 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import static com.byteshaft.sendsms.MainActivity.foreground;
 import static com.byteshaft.sendsms.MainActivity.taskRunning;
@@ -56,8 +60,12 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     private BroadcastReceiver sendReceiver;
     private BroadcastReceiver deliverReceiver;
     private boolean serviceRunning = false;
-    public static HashMap<String, String> smsTobeUpload;
-    private static int counterForRecheck = 0;
+    public static HashMap<String, ArrayList<String>> smsTobeUpload;
+    public static int sMinInterval = 0;
+    public static int sMaxInterval = 0;
+    private boolean successRunning = false;
+    private boolean failedRunning = false;
+
 
     public static SendSmsService getInstance() {
         return instance;
@@ -71,7 +79,6 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         smsTobeUpload = new HashMap<>();
-        counterForRecheck = 0;
         smsState = this;
         instance = this;
         startService();
@@ -119,6 +126,8 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 url = jsonObject.getString("server_address");
                 data.put("api_key", jsonObject.getString("api_key"));
                 api_key = jsonObject.getString("api_key");
+                sMinInterval = Integer.parseInt(jsonObject.getString("min_sending_interval"));
+                sMaxInterval = Integer.parseInt(jsonObject.getString("max_sending_interval"));
                 data.put("command", jsonObject.getString("command"));
                 String parameters = jsonObject.getString("parameters").replaceAll("'", "\"");
                 String params = ", \"parameters\":" + parameters;
@@ -142,6 +151,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     }
 
     private void runWhenFailed(final JSONObject jsonObject, final String result) {
+        failedRunning = true;
         JSONObject data = new JSONObject();
         Log.e("TAG", jsonObject.toString());
         HttpRequest request;
@@ -158,11 +168,13 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 public void onReadyStateChange(HttpRequest request, int readyState) {
                     switch (readyState) {
                         case HttpRequest.STATE_DONE:
-                            Log.i(AppGlobals.getLOGTAG(getClass()), "STATE_DONE");
+                            Log.i(AppGlobals.getLOGTAG(getClass()), "runWhenFailed STATE_DONE");
                             switch (request.getStatus()) {
                                 case HttpURLConnection.HTTP_OK:
+                                    failedRunning = true;
                                     taskRunning = false;
                                     String response = request.getResponseText();
+                                    Log.i(AppGlobals.getLOGTAG(getClass()), " "+ response);
                                     processSmsResponse(result, jsonObject);
                             }
                     }
@@ -181,6 +193,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
 
 
     private void runWhenSuccess(final JSONObject jsonObject, final String result) {
+        successRunning = true;
         JSONObject data = new JSONObject();
         Log.e("TAG", jsonObject.toString());
         HttpRequest request;
@@ -196,13 +209,24 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 public void onReadyStateChange(HttpRequest request, int readyState) {
                     switch (readyState) {
                         case HttpRequest.STATE_DONE:
-                            Log.i(AppGlobals.getLOGTAG(getClass()), "STATE_DONE");
+                            Log.i(AppGlobals.getLOGTAG(getClass()), " runWhenSuccess STATE_DONE");
                             switch (request.getStatus()) {
                                 case HttpURLConnection.HTTP_OK:
                                     Log.e("Success", "sending message Success response..............");
+                                    successRunning = false;
                                     taskRunning = false;
                                     String response = request.getResponseText();
-                                    processSmsResponse(result, jsonObject);
+                                    Log.i(AppGlobals.getLOGTAG(getClass()), " "+ response);
+                                    try {
+                                        JSONObject smsSendResponse = new JSONObject(response);
+                                        if (smsSendResponse.has("result")) {
+                                            if (smsSendResponse.getString("result").equals("TRUE")) {
+                                                processSmsResponse(result, jsonObject);
+                                            }
+                                        }
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
+                                    }
 
                             }
                     }
@@ -234,17 +258,21 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                             Log.i("TAG", "length "+ jsonArray.length());
                             Log.e("DATA", jsonArray.toString());
                             if (jsonArray.length() > 0) {
-                                counterForRecheck = 0;
+                                Helpers.appendLog(getCurrentLogDetails("") +
+                                        String.format(" Received %d SMS to send \n", jsonArray.length()));
+                                if (foreground) {
+                                    MainActivity.getInstance().loadLogs();
+                                }
                                 mJsonArray = jsonArray;
                                 smsCounter = 0;
                                 sendSMS();
                             } else {
-                                boolean value = counterForRecheck < 3;
-                                Log.i("TAG", "else part" + counterForRecheck);
-                                if (counterForRecheck < 3) {
-                                    counterForRecheck = counterForRecheck+1;
-                                    getSmsAndSend();
+                                Log.e("TAG", "No Sms found");
+                                Helpers.appendLog(getCurrentLogDetails("") +" No SMS to send \n");
+                                if (MainActivity.foreground) {
+                                    MainActivity.getInstance().loadLogs();
                                 }
+                                AlarmHelpers.setAlarm();
                             }
                         } catch (JSONException e) {
                             e.printStackTrace();
@@ -281,12 +309,10 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                     Log.i(AppGlobals.getLOGTAG(getClass()), " sms response "+ getResultCode());
                     switch (getResultCode()) {
                         case Activity.RESULT_OK:
-                            result = "Successful";
-                            Log.i("TAG", "OK");
+                            result = "Successfully";
                             break;
                         case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
-                            result = "Failed" + " Error Code " +
-                                    SmsManager.RESULT_ERROR_GENERIC_FAILURE;
+                            result = "Failed";
                             Log.i("TAG", "Failed");
                             break;
                         case SmsManager.RESULT_ERROR_RADIO_OFF:
@@ -302,19 +328,20 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                     Log.i("TAG", "counter " + smsCounter);
                     Log.i("TAG", "mJsonArray " + mJsonArray.length());
                     if (smsCounter <= mJsonArray.length()) {
-                        if (result.equals("Failed")) {
+                        if (result.equals("Failed") && !failedRunning) {
+                            Log.e("TAG", "Failed");
                             // run code when failed
-                            if (Helpers.isNetworkAvailable()) {
-                                runWhenFailed(json, result);
+                            if (Helpers.isNetworkAvailable() && !successRunning) {
+                                runWhenFailed(json, result + " Error Code " +
+                                        SmsManager.RESULT_ERROR_GENERIC_FAILURE);
                                 return;
                             }
-                        }
-                        if (result.equals("Successful")) {
+                        } else if (result.equals("Successfully")) {
                             if (Helpers.isNetworkAvailable()) {
                                 runWhenSuccess(json, result);
                                 return;
                             }
-                        }
+                        } else if (!successRunning && !failedRunning)
                         Log.e("service", "Running outer");
                         processSmsResponse(result, json);
                     }
@@ -331,7 +358,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
 
             };
             registerReceiver(sendReceiver, new IntentFilter(SENT));
-            registerReceiver(deliverReceiver, new IntentFilter(DELIVERED));
+//            registerReceiver(deliverReceiver, new IntentFilter(DELIVERED));
 
             SmsManager smsManager = SmsManager.getDefault();
             smsManager.sendTextMessage("03448797786", null, json.getString("raw_sms"), sentPI,
@@ -349,8 +376,8 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     private void processSmsResponse(String result, JSONObject json) {
         try {
             String fullLog = getCurrentLogDetails(currentNumber) + SPACE + result +
-                    " message id " + json.getString("sms_id") + " to " +
-                    json.getString("receiver") + SPACE + "\"" + json.getString("raw_sms") + " \"";
+                    " message ID " + json.getString("sms_id") + " to " +
+                    json.getString("receiver") + SPACE + "\"" + json.getString("raw_sms") + "\"";
             Helpers.appendLog(fullLog);
         } catch (JSONException e) {
             e.printStackTrace();
@@ -360,7 +387,17 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         }
         smsCounter = smsCounter+1;
         Log.i("counter", "count " + smsCounter);
-        smsState.messageState();
+        Random rand = new Random();
+        int randomNum = sMinInterval + rand.nextInt((sMaxInterval - sMinInterval) + 1);
+        Log.i("TAG", "Random Number" + randomNum);
+        new android.os.Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (serviceRunning) {
+                    smsState.messageState();
+                }
+            }
+        }, TimeUnit.SECONDS.toMillis(randomNum));
     }
 
     public void unregiReceiver() {
@@ -381,7 +418,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         Log.i("TAG", String.valueOf(exception.getCause()));
     }
 
-    private String getCurrentLogDetails(String currentNumber) {
+    public String getCurrentLogDetails(String currentNumber) {
         String log = null;
         Uri mSmsSentQueryUri = Uri.parse("content://sms/sent");
         Cursor cursor1 = getContentResolver().query(mSmsSentQueryUri, new String[]{"_id", "thread_id", "address", "person", "date", "body", "type"}, null, null, null);
@@ -398,16 +435,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                         String body = cursor1.getString(cursor1.getColumnIndex(columns[3]));
                         String type = cursor1.getString(cursor1.getColumnIndex(columns[4]));
                         Log.d("*******", "body=" + body + "name=" + name + "date=" + date);
-                        Calendar calendar = Calendar.getInstance();
-                        calendar.setTimeInMillis(Long.parseLong(date));
-                        int mYear = calendar.get(Calendar.YEAR);
-                        int mMonth = calendar.get(Calendar.MONTH);
-                        int mDay = calendar.get(Calendar.DAY_OF_MONTH);
-                        int hours = calendar.get(Calendar.HOUR_OF_DAY);
-                        int minutes = calendar.get(Calendar.MINUTE);
-                        int seconds = calendar.get(Calendar.SECOND);
-                        log = mYear + COLON + mMonth + COLON + mDay + SPACE +
-                                hours + COLON + minutes + COLON + seconds;
+                        log = getTimeDate();
                         int apiVersion = android.os.Build.VERSION.SDK_INT;
                         if (apiVersion < android.os.Build.VERSION_CODES.LOLLIPOP){
                             getContentResolver().delete(
@@ -422,10 +450,15 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
             }
         }
         if (log == null) {
-            Calendar c = Calendar.getInstance();
-            SimpleDateFormat df = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss");
-            log = df.format(c.getTime());
+            log = getTimeDate();
         }
+        return log;
+    }
+
+    private String getTimeDate() {
+        String log;Calendar c = Calendar.getInstance();
+        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        log = df.format(c.getTime());
         return log;
     }
 
@@ -452,6 +485,10 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
             Log.e("TAG", "Matched");
             if (!taskRunning) {
                 Log.e("TAG", "Task not running");
+                Helpers.appendLog(getCurrentLogDetails("") +  " No SMS to send\n");
+                if (foreground) {
+                    MainActivity.getInstance().loadLogs();
+                }
                 new android.os.Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
@@ -476,46 +513,60 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 e.printStackTrace();
             }
         }
-
     }
 
     public static void runWhenMessageReceived() {
         JSONObject data = new JSONObject();
-        if (smsTobeUpload.size() > 0) {
-            for (Map.Entry<String, String> sms : smsTobeUpload.entrySet()) {
-                HttpRequest request;
-                try {
-                    data.put("api_key", api_key);
-                    data.put("command", "sms_inbox_store_received_message");
-                    JSONObject params = new JSONObject();
-                    params.put("sender", sms.getKey());
-                    params.put("raw_sms", sms.getValue());
-                    data.put("parameters", params);
-                    request = new HttpRequest(AppGlobals.getContext());
-                    request.setOnReadyStateChangeListener(new HttpRequest.OnReadyStateChangeListener() {
-                        @Override
-                        public void onReadyStateChange(HttpRequest request, int readyState) {
-                            switch (readyState) {
-                                case HttpRequest.STATE_DONE:
-                                    Log.i(AppGlobals.getLOGTAG(getClass()), "STATE_DONE");
-                                    switch (request.getStatus()) {
-                                        case HttpURLConnection.HTTP_OK:
-                                            Log.e("Response", "sending message receiver Response..............");
-                                            taskRunning = false;
-                                            String response = request.getResponseText();
-                                            Log.i("TAG", response);
-                                    }
+        if (smsTobeUpload != null && smsTobeUpload.size() > 0) {
+            for (final Map.Entry<String, ArrayList<String>> sms : smsTobeUpload.entrySet()) {
+                for (final String message : sms.getValue()) {
+                    HttpRequest request;
+                    try {
+                        data.put("api_key", api_key);
+                        data.put("command", "sms_inbox_store_received_message");
+                        JSONObject params = new JSONObject();
+                        params.put("sender", sms.getKey());
+                        params.put("raw_sms", message);
+                        data.put("parameters", params);
+                        request = new HttpRequest(AppGlobals.getContext());
+                        request.setOnReadyStateChangeListener(new HttpRequest.OnReadyStateChangeListener() {
+                            @Override
+                            public void onReadyStateChange(HttpRequest request, int readyState) {
+                                switch (readyState) {
+                                    case HttpRequest.STATE_DONE:
+                                        Log.i(AppGlobals.getLOGTAG(getClass()), "STATE_DONE");
+                                        switch (request.getStatus()) {
+                                            case HttpURLConnection.HTTP_OK:
+                                                Log.e("Response", "sending message receiver Response..............");
+                                                taskRunning = false;
+                                                String response = request.getResponseText();
+                                                Log.i("TAG", response);
+                                                try {
+                                                    JSONObject smsSendResponse = new JSONObject(response);
+                                                    if (smsSendResponse.has("result")) {
+                                                        if (smsSendResponse.getString("result")
+                                                                .equals("TRUE")) {
+                                                            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("")
+                                                                    + " Received new SMS from " + sms.getKey() + " \"" + message + "\" \n");
+                                                        }
+                                                    }
+                                                } catch (JSONException e) {
+                                                    e.printStackTrace();
+                                                }
+
+                                        }
+                                }
                             }
-                        }
-                    });
-                    request.open("POST", url);
-                    request.setTimeout(20000);
-                    request.setRequestHeader("Content-Type", "application/json");
-                    Log.e("TAG", data.toString());
-                    request.send(data.toString());
-                    Log.e("SEND", "sending message receiver request..............");
-                } catch (JSONException e) {
-                    e.printStackTrace();
+                        });
+                        request.open("POST", url);
+                        request.setTimeout(20000);
+                        request.setRequestHeader("Content-Type", "application/json");
+                        Log.e("TAG", data.toString());
+                        request.send(data.toString());
+                        Log.e("SEND", "sending message receiver request..............");
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
             smsTobeUpload = new HashMap<>();

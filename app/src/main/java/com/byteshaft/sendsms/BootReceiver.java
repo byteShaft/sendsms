@@ -13,7 +13,9 @@ public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (Helpers.getBooleanFromSp(AppGlobals.KEY_SERVICE_STATE)) {
-            context.startService(new Intent(context, SendSmsService.class));
+            if (SendSmsService.getInstance() == null) {
+                context.startService(new Intent(context, SendSmsService.class));
+            }
         }
     }
 }
