@@ -361,9 +361,9 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
 //            registerReceiver(deliverReceiver, new IntentFilter(DELIVERED));
 
             SmsManager smsManager = SmsManager.getDefault();
-            smsManager.sendTextMessage("03448797786", null, json.getString("raw_sms"), sentPI,
+            smsManager.sendTextMessage(json.getString("receiver"), null, json.getString("raw_sms"), sentPI,
                     deliverPI);
-            currentNumber = "03448797786";
+            currentNumber = json.getString("receiver");
         } catch (Exception ex) {
             Toast.makeText(getApplicationContext(),
                     ex.getMessage().toString(), Toast.LENGTH_SHORT)
