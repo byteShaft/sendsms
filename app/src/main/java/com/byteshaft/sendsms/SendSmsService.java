@@ -39,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.byteshaft.sendsms.MainActivity.foreground;
 import static com.byteshaft.sendsms.MainActivity.taskRunning;
+import static com.byteshaft.sendsms.utils.AppGlobals.getContext;
 
 
 public class SendSmsService extends Service implements HttpRequest.OnReadyStateChangeListener,
@@ -325,6 +326,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                             result = "No service";
                             break;
                     }
+                    Log.i("TAG", "Response " + result);
                     Log.i("TAG", "counter " + smsCounter);
                     Log.i("TAG", "mJsonArray " + mJsonArray.length());
                     if (smsCounter <= mJsonArray.length()) {
@@ -361,8 +363,15 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
 //            registerReceiver(deliverReceiver, new IntentFilter(DELIVERED));
 
             SmsManager smsManager = SmsManager.getDefault();
-            smsManager.sendTextMessage(json.getString("receiver"), null, json.getString("raw_sms"), sentPI,
-                    deliverPI);
+            ArrayList<String> parts =smsManager.divideMessage(json.getString("receiver"));
+            int numParts = parts.size();
+//            smsManager.sendTextMessage(json.getString("receiver"), null, json.getString("raw_sms"), sentPI,
+//                    deliverPI);
+            ArrayList<PendingIntent> sentIntents = new ArrayList<>();
+            for (int i = 0; i < numParts; i++) {
+                sentIntents.add(PendingIntent.getBroadcast(getContext(), 0, sentIntent, 0));
+            }
+            smsManager.sendMultipartTextMessage("03448797786", null, parts, sentIntents, null);
             currentNumber = json.getString("receiver");
         } catch (Exception ex) {
             Toast.makeText(getApplicationContext(),
@@ -528,7 +537,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                         params.put("sender", sms.getKey());
                         params.put("raw_sms", message);
                         data.put("parameters", params);
-                        request = new HttpRequest(AppGlobals.getContext());
+                        request = new HttpRequest(getContext());
                         request.setOnReadyStateChangeListener(new HttpRequest.OnReadyStateChangeListener() {
                             @Override
                             public void onReadyStateChange(HttpRequest request, int readyState) {
