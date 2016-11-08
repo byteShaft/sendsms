@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+import static android.content.ContentValues.TAG;
 import static com.byteshaft.sendsms.MainActivity.foreground;
 import static com.byteshaft.sendsms.MainActivity.taskRunning;
 import static com.byteshaft.sendsms.utils.AppGlobals.getContext;
@@ -66,6 +67,10 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     public static int sMaxInterval = 0;
     private boolean successRunning = false;
     private boolean failedRunning = false;
+    private int msgParts = 0;
+    private BroadcastReceiver longMessageReceiver;
+    private final String LONG_MESSAGE_SENT_ACTION = "long_sent";
+    private boolean sendingLongSms = false;
 
 
     public static SendSmsService getInstance() {
@@ -133,7 +138,6 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 String parameters = jsonObject.getString("parameters").replaceAll("'", "\"");
                 String params = ", \"parameters\":" + parameters;
                 finalData = data.toString().replace("}", " ") + params + "}";
-                Log.i("TAG", finalData);
 
             } catch (IOException e) {
                 Log.e(AppGlobals.getLOGTAG(getClass()), "Error reading file");
@@ -181,7 +185,17 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                     }
                 }
             });
-            request.setOnErrorListener(this);
+            request.setOnErrorListener(new HttpRequest.OnErrorListener() {
+                @Override
+                public void onError(HttpRequest request, short error, Exception exception) {
+                    try {
+                        Helpers.appendLog(getCurrentLogDetails("") +
+                                String.format(" Report unsent SMS id %s failed", jsonObject.getString("sms_id")));
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
             request.open("POST", url);
             request.setTimeout(20000);
             request.setRequestHeader("Content-Type", "application/json");
@@ -233,7 +247,6 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                     }
                 }
             });
-            request.setOnErrorListener(this);
             request.open("POST", url);
             request.setTimeout(20000);
             request.setRequestHeader("Content-Type", "application/json");
@@ -306,6 +319,8 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
 
                 @Override
                 public void onReceive(Context context, Intent intent) {
+                    if (sendingLongSms)
+                        return;
                     String result = "";
                     Log.i(AppGlobals.getLOGTAG(getClass()), " sms response "+ getResultCode());
                     switch (getResultCode()) {
@@ -333,15 +348,33 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                         if (result.equals("Failed") && !failedRunning) {
                             Log.e("TAG", "Failed");
                             // run code when failed
-                            if (Helpers.isNetworkAvailable() && !successRunning) {
-                                runWhenFailed(json, result + " Error Code " +
-                                        SmsManager.RESULT_ERROR_GENERIC_FAILURE);
+                            if (!successRunning) {
+                                if (Helpers.isNetworkAvailable()) {
+                                    runWhenFailed(json, result + " Error Code " +
+                                            SmsManager.RESULT_ERROR_GENERIC_FAILURE);
+                                } else {
+                                        try {
+                                            Helpers.appendLog(getCurrentLogDetails("") +
+                                                    String.format(" Report unsent SMS id %s failed , no internet connection",
+                                                            json.getString("sms_id")));
+                                        } catch (JSONException e) {
+                                            e.printStackTrace();
+                                        }
+                                }
                                 return;
                             }
                         } else if (result.equals("Successfully")) {
                             if (Helpers.isNetworkAvailable()) {
                                 runWhenSuccess(json, result);
                                 return;
+                            } else if (!Helpers.isNetworkAvailable()) {
+                                try {
+                                    Helpers.appendLog(getCurrentLogDetails("") +
+                                            String.format(" Report unsent SMS id %s failed , no internet connection",
+                                                    json.getString("sms_id")));
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
                             }
                         } else if (!successRunning && !failedRunning)
                         Log.e("service", "Running outer");
@@ -359,20 +392,22 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 }
 
             };
-            registerReceiver(sendReceiver, new IntentFilter(SENT));
 //            registerReceiver(deliverReceiver, new IntentFilter(DELIVERED));
-
+            Log.i("TAG", "length "+ json.getString("raw_sms").length());
             SmsManager smsManager = SmsManager.getDefault();
-            ArrayList<String> parts =smsManager.divideMessage(json.getString("receiver"));
-            int numParts = parts.size();
-//            smsManager.sendTextMessage(json.getString("receiver"), null, json.getString("raw_sms"), sentPI,
-//                    deliverPI);
-            ArrayList<PendingIntent> sentIntents = new ArrayList<>();
-            for (int i = 0; i < numParts; i++) {
-                sentIntents.add(PendingIntent.getBroadcast(getContext(), 0, sentIntent, 0));
+            if (json.getString("raw_sms").length() > 160) {
+                Log.i("SendSmsService", "sending long sms");
+                sendingLongSms = true;
+                sendLongSms(json);
+                currentNumber = json.getString("receiver");
+            } else {
+                Log.i("SendSmsService", "sending normal sms");
+                sendingLongSms = false;
+                registerReceiver(sendReceiver, new IntentFilter(SENT));
+                smsManager.sendTextMessage(json.getString("receiver"), null, json.getString("raw_sms"), sentPI,
+                    deliverPI);
+                currentNumber = json.getString("receiver");
             }
-            smsManager.sendMultipartTextMessage("03448797786", null, parts, sentIntents, null);
-            currentNumber = json.getString("receiver");
         } catch (Exception ex) {
             Toast.makeText(getApplicationContext(),
                     ex.getMessage().toString(), Toast.LENGTH_SHORT)
@@ -380,6 +415,68 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
             ex.printStackTrace();
         }
         return status;
+    }
+
+    private void sendLongSms(final JSONObject jsonObject) throws JSONException {
+        SmsManager sms = SmsManager.getDefault();
+        ArrayList<String> parts = sms.divideMessage(jsonObject.getString("raw_sms"));
+        final int numParts = parts.size();
+        ArrayList<PendingIntent> sentIntents = new ArrayList<>();
+        longMessageReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                Log.d(TAG, "SMS onReceive intent received.");
+                boolean anyError = false;
+                switch (getResultCode()) {
+                    case Activity.RESULT_OK:
+                        break;
+                    case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
+                    case SmsManager.RESULT_ERROR_NO_SERVICE:
+                    case SmsManager.RESULT_ERROR_NULL_PDU:
+                    case SmsManager.RESULT_ERROR_RADIO_OFF:
+                        anyError = true;
+                        break;
+                }
+                msgParts--;
+                if (msgParts == 0) {
+                    sendingLongSms = false;
+                    if (anyError) {
+                        Toast.makeText(context,
+                                "Failed",
+                                Toast.LENGTH_SHORT).show();
+                        if (!failedRunning) {
+                            Log.e("TAG", "Failed");
+                            // run code when failed
+                            if (Helpers.isNetworkAvailable() && !successRunning) {
+                                runWhenFailed(jsonObject, "Failed" + " Error Code " +
+                                        SmsManager.RESULT_ERROR_GENERIC_FAILURE);
+                            }
+                        }
+                    } else {
+                        //success
+                        sendingLongSms = false;
+                        Log.e("SENT", "SENT LONG MESSAGE");
+                        if (Helpers.isNetworkAvailable()) {
+                            runWhenSuccess(jsonObject, "Successfully");
+                        }
+
+                    }
+
+                    unregisterReceiver(longMessageReceiver);
+                }
+
+            }
+        };
+        registerReceiver(longMessageReceiver, new IntentFilter(LONG_MESSAGE_SENT_ACTION));
+
+        for (int i = 0; i < numParts; i++) {
+            sentIntents.add(PendingIntent.getBroadcast(this, 0, new Intent(
+                    LONG_MESSAGE_SENT_ACTION), 0));
+        }
+
+        sms.sendMultipartTextMessage(jsonObject.getString("receiver"), null, parts, sentIntents,
+                    null);
+        msgParts = numParts;
     }
 
     private void processSmsResponse(String result, JSONObject json) {
@@ -422,9 +519,11 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
 
     @Override
     public void onError(HttpRequest request, short error, Exception exception) {
+        Helpers.appendLog(getCurrentLogDetails("") +  " Check for new SMS failed \n");
         Log.i("TAG", String.valueOf(request.getError()));
         Log.i("TAG", String.valueOf(error));
         Log.i("TAG", String.valueOf(exception.getCause()));
+
     }
 
     public String getCurrentLogDetails(String currentNumber) {
@@ -494,7 +593,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
             Log.e("TAG", "Matched");
             if (!taskRunning) {
                 Log.e("TAG", "Task not running");
-                Helpers.appendLog(getCurrentLogDetails("") +  " No SMS to send\n");
+                Helpers.appendLog(getCurrentLogDetails("") +  " Check for new SMS failed \n");
                 if (foreground) {
                     MainActivity.getInstance().loadLogs();
                 }

@@ -8,6 +8,7 @@ import android.os.Build;
 import android.os.SystemClock;
 import android.util.Log;
 
+import java.util.Calendar;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -18,6 +19,7 @@ public class AlarmHelpers  {
 
     private static AlarmManager mAlarmManager;
     private static PendingIntent mPendingIntent;
+    private  static PendingIntent mPIntent;
 
     public static void setAlarm() {
         mAlarmManager = getAlarmManager();
@@ -46,6 +48,19 @@ public class AlarmHelpers  {
             mAlarmManager.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP,
                     SystemClock.elapsedRealtime() + time, mPendingIntent);
         }
+    }
+
+    public static void setAlarmForNewDay(Context context) {
+        mAlarmManager = getAlarmManager();
+        Intent intent = new Intent("com.byteShaft.night_alarm");
+        mPIntent = PendingIntent.getBroadcast(context, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        Calendar timeOff = Calendar.getInstance();
+        timeOff.add(Calendar.DATE, 1);
+        timeOff.set(Calendar.HOUR_OF_DAY, 0);
+        timeOff.set(Calendar.MINUTE, 0);
+        Log.i("TAG", " alarm time " + timeOff.getTimeInMillis());
+        mAlarmManager.setInexactRepeating(AlarmManager.RTC_WAKEUP,
+                timeOff.getTimeInMillis(), AlarmManager.INTERVAL_DAY, mPIntent);
     }
 
     private static AlarmManager getAlarmManager() {
