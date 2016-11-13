@@ -20,6 +20,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.byteshaft.sendsms.utils.AlarmHelpers;
 import com.byteshaft.sendsms.utils.AppGlobals;
 import com.byteshaft.sendsms.utils.Helpers;
 
@@ -52,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        AlarmHelpers.setAlarmForNewDay(getApplicationContext());
         mScrollView = (ScrollView) findViewById(R.id.scroll_view);
         instance = this;
         logTextView = (TextView) findViewById(R.id.logs);

@@ -21,6 +21,9 @@ import static com.byteshaft.sendsms.SendSmsService.smsTobeUpload;
 
 public class MessageReceiver extends BroadcastReceiver {
 
+    private String msg_from;
+    private String msgBody;
+
     @Override
     public void onReceive(Context context, Intent intent) {
         Log.i("TAG", "SMS RECEIVER");
@@ -30,7 +33,6 @@ public class MessageReceiver extends BroadcastReceiver {
         if (intent.getAction().equals("android.provider.Telephony.SMS_RECEIVED")) {
             Bundle bundle = intent.getExtras();           //---get the SMS message passed in---
             SmsMessage[] msgs;
-            String msg_from;
             if (bundle != null) {
                 //---retrieve the SMS message received---
                 try {
@@ -41,31 +43,69 @@ public class MessageReceiver extends BroadcastReceiver {
                         msg_from = msgs[i].getOriginatingAddress();
                         String msgBody = msgs[i].getMessageBody();
                         Log.i("TAG", msg_from + " " + msgBody);
-                        if (SendSmsService.getInstance() != null && Helpers.getBooleanFromSp(
-                                AppGlobals.KEY_SERVICE_STATE)) {
-//                            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("")
-//                                    + " Received New Sms From " + msg_from + " \"" + msgBody + "\" \n");
-                            Log.i("TAG","Condition");
-                            if (SendSmsService.smsTobeUpload.containsKey(msg_from)) {
-                                Log.i("TAG"," if Condition");
-                                ArrayList<String> array = SendSmsService.smsTobeUpload.get(msg_from);
-                                Log.i("TAG", array + " "+ array.size());
-                                array.add(msgBody);
-                                SendSmsService.smsTobeUpload.put(msg_from, array);
-                            } else {
-                                Log.i("TAG"," else Condition");
-                                ArrayList<String> array = new ArrayList<>();
-                                array.add(msgBody);
-                                SendSmsService.smsTobeUpload.put(msg_from, array);
-                                Log.i("TAG", "this"+ String.valueOf(smsTobeUpload));
-                            }
-                        }
                     }
+                    SmsMessage sms = msgs[0];
+                    try {
+                        if (msgs.length == 1 || sms.isReplace()) {
+                            msgBody = sms.getDisplayMessageBody();
+                        } else {
+                            StringBuilder bodyText = new StringBuilder();
+                            for (int i = 0; i < msgs.length; i++) {
+                                bodyText.append(msgs[i].getMessageBody());
+                            }
+                            msgBody = bodyText.toString();
+                        }
+                    } catch (Exception e) {
+
+                    }
+//                        if (SendSmsService.getInstance() != null && Helpers.getBooleanFromSp(
+//                                AppGlobals.KEY_SERVICE_STATE)) {
+////                            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("")
+////                                    + " Received New Sms From " + msg_from + " \"" + msgBody + "\" \n");
+//                            Log.i("TAG","Condition");
+//                            if (SendSmsService.smsTobeUpload.containsKey(msg_from)) {
+//                                Log.i("TAG"," if Condition");
+//                                ArrayList<String> array = SendSmsService.smsTobeUpload.get(msg_from);
+//                                Log.i("TAG", array + " "+ array.size());
+//                                array.add(msgBody);
+//                                SendSmsService.smsTobeUpload.put(msg_from, array);
+//                            } else {
+//                                Log.i("TAG"," else Condition");
+//                                ArrayList<String> array = new ArrayList<>();
+//                                array.add(msgBody);
+//                                SendSmsService.smsTobeUpload.put(msg_from, array);
+//                                Log.i("TAG", "this"+ String.valueOf(smsTobeUpload));
+//                            }
+//                        }
                 } catch (Exception e) {
 //                            Log.d("Exception caught",e.getMessage());
                 }
             }
         }
+
+        if (SendSmsService.getInstance() != null && Helpers.getBooleanFromSp(
+                AppGlobals.KEY_SERVICE_STATE)) {
+//                            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("")
+//                                    + " Received New Sms From " + msg_from + " \"" + msgBody + "\" \n");
+            Log.i("TAG","Condition");
+            if (SendSmsService.smsTobeUpload.containsKey(msg_from)) {
+                Log.i("TAG"," if Condition");
+                ArrayList<String> array = SendSmsService.smsTobeUpload.get(msg_from);
+                Log.i("TAG", array + " "+ array.size());
+                array.add(msgBody);
+                SendSmsService.smsTobeUpload.put(msg_from, array);
+            } else {
+                Log.i("TAG"," else Condition");
+                ArrayList<String> array = new ArrayList<>();
+                array.add(msgBody);
+                SendSmsService.smsTobeUpload.put(msg_from, array);
+                Log.i("TAG", "this"+ String.valueOf(smsTobeUpload));
+            }
+        }
+
+
+
+
         Log.i("TAG", "" + "outer");
         if (Helpers.isNetworkAvailable()) {
             Log.i("TAG", "" + "if part");
