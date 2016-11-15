@@ -543,14 +543,14 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     @Override
     public void onError(HttpRequest request, short error, Exception exception) {
         Helpers.appendLog(getCurrentLogDetails("") +  " Check for new SMS failed \n");
-        StringWriter sw = new StringWriter();
+        /*StringWriter sw = new StringWriter();
         exception.printStackTrace(new PrintWriter(sw));
         String exceptionAsString = sw.toString();
-        Helpers.appendLog(getCurrentLogDetails("") +  " Exception: " + exceptionAsString);
+        Helpers.appendLog(getCurrentLogDetails("") +  " Exception: " + exceptionAsString);*/
         Log.i("TAG", String.valueOf(request.getError()));
         Log.i("TAG", String.valueOf(error));
         Log.i("TAG", String.valueOf(exception.getCause()));
-        AlarmHelpers.setAlarm();
+        //AlarmHelpers.setAlarm();
     }
 
     public String getCurrentLogDetails(String currentNumber) {
