@@ -193,7 +193,7 @@ public class MainActivity extends AppCompatActivity {
                 Helpers.saveFileName(Helpers.getCurrentDateAndTime());
                 startService(new Intent(getApplicationContext(), SendSmsService.class));
                 mSwitch.setChecked(true);
-                mSwitch.setText("Service Running");
+                mSwitch.setText("Service Running (version: 2016-11-14)");
             } else {
                 Helpers.saveFileName("");
                 mSwitch.setChecked(false);
