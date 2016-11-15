@@ -36,6 +36,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.io.StringWriter;
+import java.io.PrintWriter;
 
 import static android.content.ContentValues.TAG;
 import static com.byteshaft.sendsms.MainActivity.foreground;
@@ -151,7 +153,9 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
             mRequest.open("POST", url);
             mRequest.setTimeout(20000);
             mRequest.setRequestHeader("Content-Type", "application/json");
+            Helpers.appendLog(getCurrentLogDetails("") + " Requesting new SMS ...");
             mRequest.send(finalData);
+            Helpers.appendLog(getCurrentLogDetails("") + " Request for new SMS sent.");
         } else Log.e(AppGlobals.getLOGTAG(getClass()), "File does not exist");
     }
 
@@ -181,6 +185,9 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                                     String response = request.getResponseText();
                                     Log.i(AppGlobals.getLOGTAG(getClass()), " "+ response);
                                     processSmsResponse(result, jsonObject);
+                                    break;
+                                default:
+                                    Helpers.appendLog(getCurrentLogDetails("") + " NOT HTTP status for sms_server_mark_message_as_not_sent: " + request.getStatusText());
                             }
                     }
                 }
@@ -218,7 +225,9 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
             JSONObject params = new JSONObject();
             params.put("sms_id", jsonObject.get("sms_id"));
             data.put("parameters", params);
+            Helpers.appendLog(getCurrentLogDetails("") + " Sending request sms_server_mark_message_as_sent ...");
             request = new HttpRequest(getApplicationContext());
+            Helpers.appendLog(getCurrentLogDetails("") + " Request sms_server_mark_message_as_sent sent.");
             request.setOnReadyStateChangeListener(new HttpRequest.OnReadyStateChangeListener() {
                 @Override
                 public void onReadyStateChange(HttpRequest request, int readyState) {
@@ -273,7 +282,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                             Log.e("DATA", jsonArray.toString());
                             if (jsonArray.length() > 0) {
                                 Helpers.appendLog(getCurrentLogDetails("") +
-                                        String.format(" Received %d SMS to send \n", jsonArray.length()));
+                                        String.format(" Received %d SMS to send\n", jsonArray.length()));
                                 if (foreground) {
                                     MainActivity.getInstance().loadLogs();
                                 }
@@ -282,7 +291,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                                 sendSMS();
                             } else {
                                 Log.e("TAG", "No Sms found");
-                                Helpers.appendLog(getCurrentLogDetails("") +" No SMS to send \n");
+                                Helpers.appendLog(getCurrentLogDetails("") +" No SMS to send. Waiting 90 seconds ...\n");
                                 if (MainActivity.foreground) {
                                     MainActivity.getInstance().loadLogs();
                                 }
@@ -290,9 +299,16 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                             }
                         } catch (JSONException e) {
                             e.printStackTrace();
+                            Helpers.appendLog(getCurrentLogDetails("") + " JSON exception: " + Log.getStackTraceString(e) + "\n");
+                            AlarmHelpers.setAlarm(); //PaBlCz
                         }
-
+                        break;
+                    default: {
+                        Helpers.appendLog(getCurrentLogDetails("") + " HTTP NOK status: " + request.getStatusText() + "\n");
+                        AlarmHelpers.setAlarm(); //PaBlCz
+                    }
                 }
+                break;
         }
     }
 
@@ -370,7 +386,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                             } else if (!Helpers.isNetworkAvailable()) {
                                 try {
                                     Helpers.appendLog(getCurrentLogDetails("") +
-                                            String.format(" Report unsent SMS id %s failed , no internet connection",
+                                            String.format(" Report unsent SMS id %s failed, no internet connection",
                                                     json.getString("sms_id")));
                                 } catch (JSONException e) {
                                     e.printStackTrace();
@@ -474,6 +490,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                     LONG_MESSAGE_SENT_ACTION), 0));
         }
 
+        Helpers.appendLog(getCurrentLogDetails("") + " Sending message " + jsonObject.getString("sms_id") + "...");
         sms.sendMultipartTextMessage(jsonObject.getString("receiver"), null, parts, sentIntents,
                     null);
         msgParts = numParts;
@@ -488,14 +505,20 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         } catch (JSONException e) {
             e.printStackTrace();
         }
+/*
         if (foreground) {
             MainActivity.getInstance().loadLogs();
         }
+*/
         smsCounter = smsCounter+1;
         Log.i("counter", "count " + smsCounter);
         Random rand = new Random();
         int randomNum = sMinInterval + rand.nextInt((sMaxInterval - sMinInterval) + 1);
         Log.i("TAG", "Random Number" + randomNum);
+        Helpers.appendLog(getCurrentLogDetails("") + String.format(" Waiting %d seconds before sending next SMS ...\n", randomNum));
+        if (foreground) {
+            MainActivity.getInstance().loadLogs();
+        }
         new android.os.Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
@@ -520,10 +543,14 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     @Override
     public void onError(HttpRequest request, short error, Exception exception) {
         Helpers.appendLog(getCurrentLogDetails("") +  " Check for new SMS failed \n");
+        StringWriter sw = new StringWriter();
+        exception.printStackTrace(new PrintWriter(sw));
+        String exceptionAsString = sw.toString();
+        Helpers.appendLog(getCurrentLogDetails("") +  " Exception: " + exceptionAsString);
         Log.i("TAG", String.valueOf(request.getError()));
         Log.i("TAG", String.valueOf(error));
         Log.i("TAG", String.valueOf(exception.getCause()));
-
+        AlarmHelpers.setAlarm();
     }
 
     public String getCurrentLogDetails(String currentNumber) {
@@ -593,7 +620,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
             Log.e("TAG", "Matched");
             if (!taskRunning) {
                 Log.e("TAG", "Task not running");
-                Helpers.appendLog(getCurrentLogDetails("") +  " Check for new SMS failed \n");
+                Helpers.appendLog(getCurrentLogDetails("") +  " Check for new SMS failed 2 \n");
                 if (foreground) {
                     MainActivity.getInstance().loadLogs();
                 }
