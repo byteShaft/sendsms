@@ -153,9 +153,9 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
             mRequest.open("POST", url);
             mRequest.setTimeout(20000);
             mRequest.setRequestHeader("Content-Type", "application/json");
-            Helpers.appendLog(getCurrentLogDetails("") + " Requesting new SMS ...");
+            Helpers.appendLog(getCurrentLogDetails("") + " Requesting new SMS ...\n");
             mRequest.send(finalData);
-            Helpers.appendLog(getCurrentLogDetails("") + " Request for new SMS sent.");
+            Helpers.appendLog(getCurrentLogDetails("") + " Request for new SMS sent.\n");
         } else Log.e(AppGlobals.getLOGTAG(getClass()), "File does not exist");
     }
 
@@ -183,11 +183,11 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                                     failedRunning = true;
                                     taskRunning = false;
                                     String response = request.getResponseText();
-                                    Log.i(AppGlobals.getLOGTAG(getClass()), " "+ response);
+                                    Log.i(AppGlobals.getLOGTAG(getClass()), " " + response);
                                     processSmsResponse(result, jsonObject);
                                     break;
                                 default:
-                                    Helpers.appendLog(getCurrentLogDetails("") + " NOT HTTP status for sms_server_mark_message_as_not_sent: " + request.getStatusText());
+                                    Helpers.appendLog(getCurrentLogDetails("") + " NOT HTTP status for sms_server_mark_message_as_not_sent: " + request.getStatusText() + "\n");
                             }
                     }
                 }
@@ -197,7 +197,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 public void onError(HttpRequest request, short error, Exception exception) {
                     try {
                         Helpers.appendLog(getCurrentLogDetails("") +
-                                String.format(" Report unsent SMS id %s failed", jsonObject.getString("sms_id")));
+                                String.format(" Report unsent SMS id %s failed", jsonObject.getString("sms_id")) + "\n");
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
@@ -225,9 +225,11 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
             JSONObject params = new JSONObject();
             params.put("sms_id", jsonObject.get("sms_id"));
             data.put("parameters", params);
-            Helpers.appendLog(getCurrentLogDetails("") + " Sending request sms_server_mark_message_as_sent ...");
+//            Helpers.appendLog(getCurrentLogDetails("") + " Sending request sms_server_mark_message_as_sent (SMS id )...\n");
+            Helpers.appendLog(String.format("%s Sending request sms_server_mark_message_as_sent (SMS id %d)...\n", getCurrentLogDetails(""), jsonObject.get("sms_id")));
             request = new HttpRequest(getApplicationContext());
-            Helpers.appendLog(getCurrentLogDetails("") + " Request sms_server_mark_message_as_sent sent.");
+//            Helpers.appendLog(getCurrentLogDetails("") + " Request sms_server_mark_message_as_sent sent.\n");
+            Helpers.appendLog(String.format("%s Request sms_server_mark_message_as_sent sent (SMS Id %d).\n", getCurrentLogDetails(""), jsonObject.get("sms_id")));
             request.setOnReadyStateChangeListener(new HttpRequest.OnReadyStateChangeListener() {
                 @Override
                 public void onReadyStateChange(HttpRequest request, int readyState) {
@@ -240,7 +242,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                                     successRunning = false;
                                     taskRunning = false;
                                     String response = request.getResponseText();
-                                    Log.i(AppGlobals.getLOGTAG(getClass()), " "+ response);
+                                    Log.i(AppGlobals.getLOGTAG(getClass()), " " + response);
                                     try {
                                         JSONObject smsSendResponse = new JSONObject(response);
                                         if (smsSendResponse.has("result")) {
@@ -248,11 +250,22 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                                                 processSmsResponse(result, jsonObject);
                                             }
                                         }
+                                        else if (smsSendResponse.has("error")) {
+                                            Helpers.appendLog(getCurrentLogDetails("") + smsSendResponse.getString("error") + "\n");
+                                        }
+                                        else
+                                            Helpers.appendLog(getCurrentLogDetails("") + " Unknown result." + "\n");
                                     } catch (JSONException e) {
                                         e.printStackTrace();
                                     }
+                                    break;
+                                default:
+                                    Helpers.appendLog(getCurrentLogDetails("") + " NOT HTTP status for sms_server_mark_message_as_sent: " + request.getStatusText() + "\n");
 
                             }
+                            break;
+                        default:
+                            Helpers.appendLog(getCurrentLogDetails("") + " ??? HTTP status for sms_server_mark_message_as_sent: xxx \n");
                     }
                 }
             });
@@ -372,7 +385,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                                         try {
                                             Helpers.appendLog(getCurrentLogDetails("") +
                                                     String.format(" Report unsent SMS id %s failed , no internet connection",
-                                                            json.getString("sms_id")));
+                                                            json.getString("sms_id")) + "\n");
                                         } catch (JSONException e) {
                                             e.printStackTrace();
                                         }
@@ -387,14 +400,19 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                                 try {
                                     Helpers.appendLog(getCurrentLogDetails("") +
                                             String.format(" Report unsent SMS id %s failed, no internet connection",
-                                                    json.getString("sms_id")));
+                                                    json.getString("sms_id")) + "\n");
                                 } catch (JSONException e) {
                                     e.printStackTrace();
                                 }
                             }
-                        } else if (!successRunning && !failedRunning)
-                        Log.e("service", "Running outer");
-                        processSmsResponse(result, json);
+//pablcz  BEGIN                } else if (!successRunning && !failedRunning)
+//                        Log.e("service", "Running outer");
+//                        processSmsResponse(result, json);
+                        } else if (!successRunning && !failedRunning) {
+                            Log.e("service", "Running outer");
+                            processSmsResponse(result, json);
+                        }
+//pablcz END
                     }
                     unregiReceiver();
                 }
@@ -490,17 +508,16 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                     LONG_MESSAGE_SENT_ACTION), 0));
         }
 
-        Helpers.appendLog(getCurrentLogDetails("") + " Sending message " + jsonObject.getString("sms_id") + "...");
-        sms.sendMultipartTextMessage(jsonObject.getString("receiver"), null, parts, sentIntents,
-                    null);
+        Helpers.appendLog(getCurrentLogDetails("") + " Sending message " + jsonObject.getString("sms_id") + "...\n");
+        sms.sendMultipartTextMessage(jsonObject.getString("receiver"), null, parts, sentIntents, null);
         msgParts = numParts;
     }
 
     private void processSmsResponse(String result, JSONObject json) {
         try {
             String fullLog = getCurrentLogDetails(currentNumber) + SPACE + result +
-                    " message ID " + json.getString("sms_id") + " to " +
-                    json.getString("receiver") + SPACE + "\"" + json.getString("raw_sms") + "\"";
+                    " SMS Id " + json.getString("sms_id") + " to " +
+                    json.getString("receiver") + SPACE + "\"" + json.getString("raw_sms") + "\"" + "\n";
             Helpers.appendLog(fullLog);
         } catch (JSONException e) {
             e.printStackTrace();
@@ -546,7 +563,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         Log.i("TAG", String.valueOf(request.getError()));
         Log.i("TAG", String.valueOf(error));
         Log.i("TAG", String.valueOf(exception.getCause()));
-        //AlarmHelpers.setAlarm();
+        AlarmHelpers.setAlarm();
     }
 
     public String getCurrentLogDetails(String currentNumber) {
@@ -616,7 +633,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
             Log.e("TAG", "Matched");
             if (!taskRunning) {
                 Log.e("TAG", "Task not running");
-                Helpers.appendLog(getCurrentLogDetails("") +  " Check for new SMS failed 2 \n");
+                Helpers.appendLog(getCurrentLogDetails("") +  " Check for new SMS failed 2\n");
                 if (foreground) {
                     MainActivity.getInstance().loadLogs();
                 }
