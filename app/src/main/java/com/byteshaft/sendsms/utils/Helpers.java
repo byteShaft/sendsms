@@ -35,7 +35,7 @@ public class Helpers {
     }
 
     public static void appendLog(String log) {
-        Log.i("TAG" , getLogFile());
+        Log.i("TAG", getLogFile());
         File file = new File(getLogFile());
         if (!file.exists()) {
             Log.e("if", "File not exist");
@@ -43,7 +43,6 @@ public class Helpers {
         } else {
             Log.e("if", "File exist");
             writeLogs(log);
-
         }
     }
 
@@ -119,9 +118,10 @@ public class Helpers {
 
     private static void writeLogs(String log) {
         try {
-            FileOutputStream writeLogFile = new FileOutputStream(Helpers.getLogFile() ,true);
+            FileOutputStream writeLogFile = new FileOutputStream(Helpers.getLogFile(), true);
             OutputStreamWriter outputStreamWriter = new OutputStreamWriter(writeLogFile);
-            outputStreamWriter.append(log +"\n");
+//            outputStreamWriter.append(log +"\n");
+            outputStreamWriter.append(log);
             outputStreamWriter.close();
             writeLogFile.close();
         } catch (FileNotFoundException e) {
@@ -150,7 +150,8 @@ public class Helpers {
 
     public static String getCurrentDateAndTime() {
         Calendar c = Calendar.getInstance();
-        SimpleDateFormat df = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss");
+//pablcz        SimpleDateFormat df = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss");
+        SimpleDateFormat df = new SimpleDateFormat("yyyy_MM_dd");
         return df.format(c.getTime());
 
     }

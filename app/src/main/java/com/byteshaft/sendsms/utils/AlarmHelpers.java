@@ -24,7 +24,7 @@ public class AlarmHelpers  {
     public static void setAlarm() {
         mAlarmManager = getAlarmManager();
         final int ONE_SECOND = 1000;
-        final int ONE_MINUTE = ONE_SECOND * 60;
+        final int ONE_MINUTE = ONE_SECOND * 90;
         setAlarm(ONE_MINUTE);
     }
 

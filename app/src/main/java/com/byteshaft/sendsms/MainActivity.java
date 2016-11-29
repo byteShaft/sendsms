@@ -69,11 +69,12 @@ public class MainActivity extends AppCompatActivity {
                         Helpers.saveBooleanToSp(AppGlobals.KEY_SERVICE_STATE, true);
                         mSwitch.setChecked(true);
                         mSwitch.setText("Service Running");
+//                        Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("") +  " Service is started (onCreate)\n");
                     }
                 } else {
                     SendSmsService.getInstance().unregiReceiver();
                     stopService(new Intent(getApplicationContext(), SendSmsService.class));
-                    Helpers.saveFileName("");
+                    Helpers.saveFileName(Helpers.getCurrentDateAndTime());
                     if (SendSmsService.getInstance() != null) {
                         SendSmsService.getInstance().onDestroy();
                     }
@@ -90,13 +91,13 @@ public class MainActivity extends AppCompatActivity {
         for (File file : files) {
             if (file.isFile()) {
                 if (file.getName().startsWith("LOG_")) {
-                    Log.i("FIle", file.getName());
+                    Log.i("FIlE", file.getName());
                     file.delete();
                 }
             }
         }
         logTextView.setText(null);
-        Helpers.saveFileName("");
+        Helpers.saveFileName(Helpers.getCurrentDateAndTime());
         return inFiles;
     }
 
@@ -133,11 +134,13 @@ public class MainActivity extends AppCompatActivity {
         }
         Log.i("TAG", "boolean " + Helpers.getBooleanFromSp(AppGlobals.KEY_SERVICE_STATE));
         if (Helpers.getBooleanFromSp(AppGlobals.KEY_SERVICE_STATE)) {
-            mSwitch.setText("Service Running");
             mSwitch.setChecked(true);
+            mSwitch.setText("Service Running");
+//            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("") +  " Service is running (onResume)\n");
         } else {
             mSwitch.setChecked(false);
             mSwitch.setText("Service Stopped");
+//            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("") +  " Service is stopped (onResume)\n");
         }
     }
 
@@ -194,10 +197,12 @@ public class MainActivity extends AppCompatActivity {
                 startService(new Intent(getApplicationContext(), SendSmsService.class));
                 mSwitch.setChecked(true);
                 mSwitch.setText("Service Running");
+//                Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("") +  " Service is running (checkAndRequestPermissions)\n");
             } else {
-                Helpers.saveFileName("");
+                Helpers.saveFileName(Helpers.getCurrentDateAndTime());
                 mSwitch.setChecked(false);
                 mSwitch.setText("Service Stopped");
+//                Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("") +  " Service is stopped (checkAndRequestPermissions)\n");
             }
         }
     }
@@ -240,10 +245,12 @@ public class MainActivity extends AppCompatActivity {
                             startService(new Intent(getApplicationContext(), SendSmsService.class));
                             mSwitch.setChecked(true);
                             mSwitch.setText("Service Running");
+//                            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("") +  " Service is running (onRequestPermissionsResult)\n");
                         } else {
-                            Helpers.saveFileName("");
+                            Helpers.saveFileName(Helpers.getCurrentDateAndTime());
                             mSwitch.setChecked(false);
                             mSwitch.setText("Service Stopped");
+//                            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("") +  " Service is stopped (onRequestPermissionsResult)\n");
                         }
                     } else {
                         Log.d("MainActivity", "Some permissions are not granted ask again ");
@@ -278,13 +285,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void loadLogs() {
-        logTextView.setText(null);
+//pablcz        logTextView.setText(null);
         if (isMyServiceRunning(SendSmsService.class)) {
-            mSwitch.setText("Service Running");
             mSwitch.setChecked(true);
+            mSwitch.setText("Service Running");
+//            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("") +  " Service is running (loadLogs)\n");
         } else {
             mSwitch.setChecked(false);
             mSwitch.setText("Service Stopped");
+//            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("") +  " Service is stopped (loadLogs)\n");
         }
         File file = new File(Helpers.getLogFile());
         if (file.exists()) {
