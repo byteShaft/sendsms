@@ -68,7 +68,7 @@ public class Helpers {
                         "\"parameters\":\"{\'queue_name\': \'PRAHA\'}\"," +
                         "\"min_sending_interval\": \"10\"," +
                         "\"max_sending_interval\":\"30\"," +
-                        "\"command\": \"sms_outbox_unsent_list\""+
+                        "\"command\": \"sms_outbox_unsent\""+
                         "}");
                 writer.flush();
                 writer.close();

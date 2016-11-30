@@ -72,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
 //                        Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("") +  " Service is started (onCreate)\n");
                     }
                 } else {
-                    SendSmsService.getInstance().unregiReceiver();
+                    SendSmsService.getInstance().unregisterReceiver();
                     stopService(new Intent(getApplicationContext(), SendSmsService.class));
                     Helpers.saveFileName(Helpers.getCurrentDateAndTime());
                     if (SendSmsService.getInstance() != null) {
@@ -285,15 +285,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void loadLogs() {
-//pablcz        logTextView.setText(null);
         if (isMyServiceRunning(SendSmsService.class)) {
             mSwitch.setChecked(true);
             mSwitch.setText("Service Running");
-//            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("") +  " Service is running (loadLogs)\n");
         } else {
             mSwitch.setChecked(false);
             mSwitch.setText("Service Stopped");
-//            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("") +  " Service is stopped (loadLogs)\n");
         }
         File file = new File(Helpers.getLogFile());
         if (file.exists()) {
