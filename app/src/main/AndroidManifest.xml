@@ -48,13 +48,6 @@
                 <action android:name="android.provider.Telephony.SMS_RECEIVED" />
             </intent-filter>
         </receiver>
-        <receiver
-            android:name=".receiver.AlarmBroadcastReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.byteshaft.alarm"/>
-            </intent-filter>
-        </receiver>
         <receiver android:name=".receiver.StandardAlarm" android:exported="false">
             <intent-filter>
                 <action android:name="com.byteShaft.night_alarm"/>
