@@ -121,9 +121,9 @@ public class MessageReceiver extends BroadcastReceiver {
             Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("")
                     + String.format(" Received " + countMessages + " Messages to sent \n",
                     smsTobeUpload.size()));
-        }
-        if (MainActivity.foreground) {
-            MainActivity.getInstance().loadLogs();
+            if (MainActivity.foreground) {
+                MainActivity.getInstance().loadLogs();
+            }
         }
     }
 }

@@ -3,19 +3,25 @@ package com.byteshaft.sendsms;
 import android.Manifest;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.CompoundButton;
-import android.widget.ScrollView;
+import android.widget.ListView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -23,6 +29,7 @@ import android.widget.Toast;
 import com.byteshaft.sendsms.utils.AlarmHelpers;
 import com.byteshaft.sendsms.utils.AppGlobals;
 import com.byteshaft.sendsms.utils.Helpers;
+import com.byteshaft.sendsms.utils.Logs;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -38,12 +45,13 @@ import static com.byteshaft.sendsms.utils.AppGlobals.sPath;
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_ID_MULTIPLE_PERMISSIONS = 0;
-    public TextView logTextView;
     public static boolean foreground = false;
     public static boolean taskRunning = false;
     private static MainActivity instance;
-    private ScrollView mScrollView;
     private Switch mSwitch;
+    private ListView mListView;
+    public ArrayList<Logs> arrayList;
+    public Adapter arrayAdapter;
 
     public static MainActivity getInstance() {
         return instance;
@@ -53,10 +61,13 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        arrayList = new ArrayList<>();
         AlarmHelpers.setAlarmForNewDay(getApplicationContext());
-        mScrollView = (ScrollView) findViewById(R.id.scroll_view);
+        mListView = (ListView) findViewById(R.id.list_view);
+        arrayAdapter = new Adapter(getApplicationContext(), R.layout.list_item,
+                arrayList);
+        mListView.setAdapter(arrayAdapter);
         instance = this;
-        logTextView = (TextView) findViewById(R.id.logs);
         mSwitch = (Switch) findViewById(R.id.service_switch);
         mSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -85,6 +96,15 @@ public class MainActivity extends AppCompatActivity {
         checkAndRequestPermissions();
     }
 
+    @Override
+    protected void onPostCreate(Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        File file = new File(Helpers.getLogFile());
+        if (file.exists()) {
+            new LoadLogs().execute();
+        }
+    }
+
     private List<File> clearLogs(File parentDir) {
         ArrayList<File> inFiles = new ArrayList<>();
         File[] files = parentDir.listFiles();
@@ -96,7 +116,8 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
-        logTextView.setText(null);
+        arrayList.clear();
+        arrayAdapter.notifyDataSetChanged();
         Helpers.saveFileName(Helpers.getCurrentDateAndTime());
         return inFiles;
     }
@@ -128,19 +149,14 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         foreground = true;
-        File file = new File(Helpers.getLogFile());
-        if (file.exists()) {
-            loadLogs();
-        }
+        arrayAdapter.notifyDataSetChanged();
         Log.i("TAG", "boolean " + Helpers.getBooleanFromSp(AppGlobals.KEY_SERVICE_STATE));
         if (Helpers.getBooleanFromSp(AppGlobals.KEY_SERVICE_STATE)) {
             mSwitch.setChecked(true);
             mSwitch.setText("Service Running");
-//            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("") +  " Service is running (onResume)\n");
         } else {
             mSwitch.setChecked(false);
             mSwitch.setText("Service Stopped");
-//            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("") +  " Service is stopped (onResume)\n");
         }
     }
 
@@ -161,6 +177,13 @@ public class MainActivity extends AppCompatActivity {
                 Manifest.permission.WRITE_EXTERNAL_STORAGE);
         int smsPermission = ContextCompat.checkSelfPermission(this,
                 Manifest.permission.SEND_SMS);
+
+        // call permission
+        int outGoingCallPermission = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.PROCESS_OUTGOING_CALLS);
+        int phoneStatePermision = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.READ_PHONE_STATE);
+
         final List<String> listPermissionsNeeded = new ArrayList<>();
         if (storagePermission != PackageManager.PERMISSION_GRANTED) {
             listPermissionsNeeded.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
@@ -169,6 +192,17 @@ public class MainActivity extends AppCompatActivity {
         if (smsPermission != PackageManager.PERMISSION_GRANTED) {
             listPermissionsNeeded.add(Manifest.permission.SEND_SMS);
             Log.i("TAG", "SEND_SMS");
+        }
+
+        // call permissions
+
+        if (outGoingCallPermission != PackageManager.PERMISSION_GRANTED) {
+            listPermissionsNeeded.add(Manifest.permission.PROCESS_OUTGOING_CALLS);
+            Log.i("TAG", "WRITE_EXTERNAL_STORAGE");
+        }
+        if (phoneStatePermision != PackageManager.PERMISSION_GRANTED) {
+            listPermissionsNeeded.add(Manifest.permission.READ_PHONE_STATE);
+            Log.i("TAG", "WRITE_EXTERNAL_STORAGE");
         }
         Log.i("TAG", " " + listPermissionsNeeded.size());
         if (!listPermissionsNeeded.isEmpty() && listPermissionsNeeded.size() > 0) {
@@ -231,8 +265,12 @@ public class MainActivity extends AppCompatActivity {
                     for (int i = 0; i < permissions.length; i++)
                         perms.put(permissions[i], grantResults[i]);
                     // Check for both permissions
-                    if (perms.get(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
-                            perms.get(Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED) {
+                    if (perms.get(Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+                            PackageManager.PERMISSION_GRANTED &&
+                            perms.get(Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED &&
+                            perms.get(Manifest.permission.PROCESS_OUTGOING_CALLS) ==
+                                    PackageManager.PERMISSION_GRANTED &&
+                    perms.get(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
                         Log.d("MainActivity", "permission granted");
                         // process the normal flow
                         //else any one or both the permissions are not granted
@@ -255,7 +293,25 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         Log.d("MainActivity", "Some permissions are not granted ask again ");
                         if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                                Manifest.permission.READ_CONTACTS) || ActivityCompat.
+                                Manifest.permission.SEND_SMS) || ActivityCompat.
+                                shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                            showDialogOK(new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    switch (which) {
+                                        case DialogInterface.BUTTON_POSITIVE:
+                                            dialog.dismiss();
+                                            checkAndRequestPermissions();
+                                            break;
+                                        case DialogInterface.BUTTON_NEGATIVE:
+                                            dialog.dismiss();
+                                            // proceed with logic by disabling the related features or quit the app.
+                                            break;
+                                    }
+                                }
+                            });
+                        } else if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                                Manifest.permission.PROCESS_OUTGOING_CALLS) || ActivityCompat.
                                 shouldShowRequestPermissionRationale(this, Manifest.permission.READ_PHONE_STATE)) {
                             showDialogOK(new DialogInterface.OnClickListener() {
                                 @Override
@@ -292,39 +348,117 @@ public class MainActivity extends AppCompatActivity {
             mSwitch.setChecked(false);
             mSwitch.setText("Service Stopped");
         }
-        File file = new File(Helpers.getLogFile());
-        if (file.exists()) {
-            StringBuilder text = new StringBuilder();
-            try {
-                BufferedReader br = new BufferedReader(new FileReader(file));
-                String line;
-                while ((line = br.readLine()) != null) {
-                    text.append(line);
-                    text.append('\n');
-                }
-                logTextView.setText(text.toString());
-                br.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        mScrollView.post(new Runnable() {
+        arrayAdapter.notifyDataSetChanged();
+        scrollMyListViewToBottom();
+    }
 
+    private void scrollMyListViewToBottom() {
+        mListView.post(new Runnable() {
             @Override
             public void run() {
-                mScrollView.fullScroll(ScrollView.FOCUS_DOWN);
+                // Select the last row so it will scroll into view...
+                mListView.setSelection(arrayAdapter.getCount() - 1);
             }
         });
     }
 
-        private void showDialogOK(DialogInterface.OnClickListener okListener) {
+    private void showDialogOK(DialogInterface.OnClickListener okListener) {
         new AlertDialog.Builder(this)
                 .setCancelable(false)
-                .setMessage("In order to use Prank Call Application some permissions are necessary. " +
-                        "Please, continue and grant them all.")
+                .setMessage(String.format("In order to use %s Application some permissions are necessary. " +
+                        "Please, continue and grant them all.", getString(R.string.app_name)))
                 .setPositiveButton("Continue", okListener)
                 .setNegativeButton("Cancel", okListener)
                 .create()
                 .show();
+    }
+
+    class LoadLogs extends AsyncTask<String, String, String> {
+
+        private ProgressDialog progressDialog;
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            progressDialog = new ProgressDialog(MainActivity.this);
+            progressDialog.setMessage("Loading Logs ...");
+            progressDialog.setIndeterminate(true);
+            progressDialog.show();
+        }
+
+        @Override
+        protected String doInBackground(String... strings) {
+            File file = new File(Helpers.getLogFile());
+            if (file.exists()) {
+                try {
+                    BufferedReader br = new BufferedReader(new FileReader(file));
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        Logs log = new Logs();
+                        log.setLogs(line);
+                        arrayList.add(log);
+                        publishProgress();
+                    }
+                    br.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(String... values) {
+            super.onProgressUpdate(values);
+            arrayAdapter.notifyDataSetChanged();
+
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+            progressDialog.dismiss();
+        }
+    }
+
+    class Adapter extends ArrayAdapter<Logs> {
+
+        private ArrayList<Logs> arrayList;
+        private ViewHolder viewHolder;
+
+        public Adapter(Context context, int resource, ArrayList<Logs> arrayList) {
+            super(context, resource);
+            this.arrayList = arrayList;
+        }
+
+        @NonNull
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            if (convertView == null) {
+                convertView = getLayoutInflater().inflate(R.layout.list_item, parent, false);
+                viewHolder = new ViewHolder();
+                viewHolder.textView = (TextView) convertView.findViewById(R.id.log_text_view);
+                convertView.setTag(viewHolder);
+            } else {
+                viewHolder = (ViewHolder) convertView.getTag();
+            }
+            Logs log = arrayList.get(position);
+            viewHolder.textView.setText(log.getLogs());
+            return convertView;
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public int getCount() {
+            return arrayList.size();
+        }
+    }
+
+    static class ViewHolder{
+        TextView textView;
     }
 }

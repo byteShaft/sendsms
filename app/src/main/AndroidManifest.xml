@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.WRITE_SMS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.RECEIVE_SMS"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS"/>
 
     <uses-feature android:name="android.hardware.Telephony"
         android:required="true"/>
@@ -51,6 +53,14 @@
         <receiver android:name=".receiver.StandardAlarm" android:exported="false">
             <intent-filter>
                 <action android:name="com.byteShaft.night_alarm"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:name=".receiver.CallReceiver" android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.PHONE_STATE" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.NEW_OUTGOING_CALL" />
             </intent-filter>
         </receiver>
     </application>
