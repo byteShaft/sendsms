@@ -9,6 +9,8 @@ import android.net.Uri;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
+import com.byteshaft.sendsms.MainActivity;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -35,7 +37,6 @@ public class Helpers {
     }
 
     public static void appendLog(String log) {
-        Log.i("TAG", getLogFile());
         File file = new File(getLogFile());
         if (!file.exists()) {
             Log.e("if", "File not exist");
@@ -43,6 +44,11 @@ public class Helpers {
         } else {
             Log.e("if", "File exist");
             writeLogs(log);
+        }
+        Logs logs = new Logs();
+        logs.setLogs(log);
+        if (MainActivity.getInstance() != null) {
+            MainActivity.getInstance().arrayList.add(logs);
         }
     }
 
@@ -120,7 +126,6 @@ public class Helpers {
         try {
             FileOutputStream writeLogFile = new FileOutputStream(Helpers.getLogFile(), true);
             OutputStreamWriter outputStreamWriter = new OutputStreamWriter(writeLogFile);
-//            outputStreamWriter.append(log +"\n");
             outputStreamWriter.append(log);
             outputStreamWriter.close();
             writeLogFile.close();
