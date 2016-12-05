@@ -49,7 +49,8 @@ public class CallReceiver extends Receiver {
             params.put("call_state", "RINGING");
             params.put("direction", direction.toUpperCase());
             params.put("phone_number", number);
-            params.put("queue_name", "PRAHA");
+            params.put("queue_name", SendSmsService.queueName);
+            Log.i("TAG", "queue name " + SendSmsService.queueName);
             data.put("parameters", params);
             Log.i("TAG", data.toString());
             Helpers.appendLog(String.format("%s Sending request phone_call_set_state",

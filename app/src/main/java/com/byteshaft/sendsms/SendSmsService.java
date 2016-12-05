@@ -67,6 +67,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     private BroadcastReceiver longMessageReceiver;
     private final String LONG_MESSAGE_SENT_ACTION = "long_sent";
     private boolean sendingLongSms = false;
+    public static String queueName = "";
 
 
     public static SendSmsService getInstance() {
@@ -130,8 +131,11 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 sMaxInterval = Integer.parseInt(jsonObject.getString("max_sending_interval"));
                 data.put("command", jsonObject.getString("command"));
                 String parameters = jsonObject.getString("parameters").replaceAll("'", "\"");
+                JSONObject parameterJosnObject = new JSONObject(parameters);
+                queueName = parameterJosnObject.getString("queue_name");
                 String params = ", \"parameters\":" + parameters;
                 finalData = data.toString().replace("}", " ") + params + "}";
+                Log.i("TAG", "data "+ finalData);
 
             } catch (IOException e) {
                 Log.e(AppGlobals.getLOGTAG(getClass()), "Error reading file");
