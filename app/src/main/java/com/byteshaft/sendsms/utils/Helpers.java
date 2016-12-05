@@ -47,7 +47,9 @@ public class Helpers {
         }
         Logs logs = new Logs();
         logs.setLogs(log);
-        MainActivity.getInstance().arrayList.add(logs);
+        if (MainActivity.getInstance() != null) {
+            MainActivity.getInstance().arrayList.add(logs);
+        }
     }
 
     public static String getConfigFile() {

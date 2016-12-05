@@ -150,6 +150,7 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         foreground = true;
         arrayAdapter.notifyDataSetChanged();
+        scrollMyListViewToBottom();
         Log.i("TAG", "boolean " + Helpers.getBooleanFromSp(AppGlobals.KEY_SERVICE_STATE));
         if (Helpers.getBooleanFromSp(AppGlobals.KEY_SERVICE_STATE)) {
             mSwitch.setChecked(true);

@@ -87,7 +87,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         getSmsAndSend();
         serviceRunning = true;
         mContext = this;
-        return START_STICKY;
+        return START_NOT_STICKY;
     }
 
     private void startService() {
@@ -458,16 +458,16 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 Log.i("SendSmsService", "sending long sms");
                 sendingLongSms = true;
                 sendLongSms(jsonObject);
-//                currentNumber = json.getString("receiver");
-                currentNumber = "03448797786";
+                currentNumber = jsonObject.getString("receiver");
+//                currentNumber = "03448797786";
             } else {
                 Log.i("SendSmsService", "sending normal sms");
                 sendingLongSms = false;
                 registerReceiver(sendReceiver, new IntentFilter(SENT));
-                smsManager.sendTextMessage("03448797786", null, jsonObject.getString("raw_sms"), sentPI,
+                smsManager.sendTextMessage(jsonObject.getString("receiver"), null, jsonObject.getString("raw_sms"), sentPI,
                         deliverPI);
-//                currentNumber = json.getString("receiver");
-                currentNumber = "03448797786";
+                currentNumber = jsonObject.getString("receiver");
+//                currentNumber = "03448797786";
             }
         } catch (Exception ex) {
             Toast.makeText(getApplicationContext(),
@@ -536,7 +536,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         }
 
         Helpers.appendLog(getCurrentLogDetails("") + " Sending message " + jsonObject.getString("sms_id") + "...\n");
-        sms.sendMultipartTextMessage("03448797786", null, parts, sentIntents, null);
+        sms.sendMultipartTextMessage(jsonObject.getString("receiver"), null, parts, sentIntents, null);
         msgParts = numParts;
     }
 

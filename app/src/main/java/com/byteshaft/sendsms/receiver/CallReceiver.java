@@ -25,6 +25,8 @@ public class CallReceiver extends Receiver {
     @Override
     protected void onIncomingCallReceived(Context ctx, String number) {
         Log.i("CallReceiver", "onIncomingCallReceived");
+        Helpers.appendLog(String.format("%s Ringing -Incomming call from " + number,
+                SendSmsService.getInstance().getCurrentLogDetails("")));
         callRequest(ctx, "Incoming", number);
     }
 
@@ -32,6 +34,8 @@ public class CallReceiver extends Receiver {
     @Override
     protected void onOutgoingCallStarted(Context ctx, String number) {
         Log.i("CallReceiver", "onOutgoingCallStarted");
+        Helpers.appendLog(String.format("%s Ringing -Outgoing call to " + number,
+                SendSmsService.getInstance().getCurrentLogDetails("")));
         callRequest(ctx, "Outgoing", number);
     }
 

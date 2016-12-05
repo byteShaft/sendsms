@@ -17,6 +17,8 @@ public abstract class Receiver extends BroadcastReceiver {
 
     private static int lastState = TelephonyManager.CALL_STATE_IDLE;
     private static boolean isIncoming;
+    private String number;
+    private int state = 0;
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -26,11 +28,13 @@ public abstract class Receiver extends BroadcastReceiver {
         }
 
         if (intent.getAction().equals("android.intent.action.NEW_OUTGOING_CALL")) {
-
-        } else{
+            number = intent.getStringExtra(Intent.EXTRA_PHONE_NUMBER);
+            state = TelephonyManager.CALL_STATE_OFFHOOK;
+            onCallStateChange(context, state, number);
+        } else {
             String stateStr = intent.getExtras().getString(TelephonyManager.EXTRA_STATE);
-            String number = intent.getExtras().getString(TelephonyManager.EXTRA_INCOMING_NUMBER);
-            int state = 0;
+            number = intent.getExtras().getString(TelephonyManager.EXTRA_INCOMING_NUMBER);
+            Log.i("TAG", "number : "+ number);
             if(stateStr.equals(TelephonyManager.EXTRA_STATE_IDLE)){
                 state = TelephonyManager.CALL_STATE_IDLE;
             }
@@ -41,7 +45,7 @@ public abstract class Receiver extends BroadcastReceiver {
                 state = TelephonyManager.CALL_STATE_RINGING;
             }
 
-            onCallStateChanged(context, state, number);
+            onCallStateChange(context, state, number);
         }
     }
 
@@ -50,7 +54,7 @@ public abstract class Receiver extends BroadcastReceiver {
     protected abstract void onOutgoingCallStarted(Context ctx, String number);
 
 
-    public void onCallStateChanged(Context context, int state, String number) {
+    public void onCallStateChange(Context context, int state, String number) {
         if(lastState == state){
             return;
         }
