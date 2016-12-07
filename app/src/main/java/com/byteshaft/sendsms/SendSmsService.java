@@ -10,6 +10,7 @@ import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.support.v4.app.NotificationCompat;
 import android.telephony.SmsManager;
 import android.util.Log;
@@ -68,7 +69,8 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     private final String LONG_MESSAGE_SENT_ACTION = "long_sent";
     private boolean sendingLongSms = false;
     public static String queueName = "";
-
+    private PowerManager.WakeLock wakeLock;
+    private int counter = 1;
 
     public static SendSmsService getInstance() {
         return instance;
@@ -88,6 +90,10 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         getSmsAndSend();
         serviceRunning = true;
         mContext = this;
+        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
+                "service wake lock");
+        wakeLock.acquire();
         return START_NOT_STICKY;
     }
 
@@ -209,6 +215,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
 
 
     private void runWhenSuccess(final JSONObject jsonObject, final String result) {
+        counter = counter + 1;
         successRunning = true;
         JSONObject data = new JSONObject();
         HttpRequest request;
@@ -260,6 +267,22 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                     }
                 }
             });
+            //161505 pablcz BEGIN
+            request.setOnErrorListener(new HttpRequest.OnErrorListener() {
+                @Override
+                public void onError(HttpRequest request, short error, Exception exception) {
+                    try {
+                        Helpers.appendLog(getCurrentLogDetails("") +
+                                String.format(" Report sent SMS id %s failed", jsonObject.getString("sms_id")) + "\n");
+                        if (counter < 3) {
+                            runWhenSuccess(jsonObject, result);
+                        }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+            //161505 pablcz END
             request.open("POST", url);
             request.setTimeout(20000);
             request.setRequestHeader("Content-Type", "application/json");
@@ -645,6 +668,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
 
     @Override
     public void onDestroy() {
+        wakeLock.release();
         serviceRunning = false;
         unregisterReceiver();
         stopForeground(true);
