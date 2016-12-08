@@ -668,7 +668,9 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
 
     @Override
     public void onDestroy() {
-        wakeLock.release();
+        if (wakeLock.isHeld()) {
+            wakeLock.release();
+        }
         serviceRunning = false;
         unregisterReceiver();
         stopForeground(true);
