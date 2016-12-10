@@ -489,7 +489,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 Helpers.appendLog(getCurrentLogDetails("") + " Sending normal sms.\n"); //20161208 pablcz
                 sendingLongSms = false;
                 registerReceiver(sendReceiver, new IntentFilter(SENT));
-                smsManager.sendTextMessage("+42060283235999", null, jsonObject.getString("raw_sms"), sentPI,
+                smsManager.sendTextMessage(jsonObject.getString("receiver"), null, jsonObject.getString("raw_sms"), sentPI,
                         deliverPI);
                 currentNumber = jsonObject.getString("receiver");
 //                currentNumber = "03448797786";
