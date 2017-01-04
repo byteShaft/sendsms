@@ -61,9 +61,7 @@ public class AlarmHelpers  {
     private static int oneHour() {
         int ONE_SECOND = 1000;
         int ONE_MIN = ONE_SECOND * 60;
-        // // TODO: 03/01/2017 add 60 for final 
-        return  ONE_MIN * 1;
-
+        return  ONE_MIN * 60;
     }
 
     private static AlarmManager getAlarmManager() {
