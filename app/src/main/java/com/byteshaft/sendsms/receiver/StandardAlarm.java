@@ -9,8 +9,11 @@ import com.byteshaft.sendsms.utils.AlarmHelpers;
 import com.byteshaft.sendsms.utils.AppGlobals;
 import com.byteshaft.sendsms.utils.Helpers;
 
+import org.apache.commons.io.comparator.LastModifiedFileComparator;
+
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 
 public class StandardAlarm extends BroadcastReceiver {
@@ -25,29 +28,28 @@ public class StandardAlarm extends BroadcastReceiver {
 
         File directory = new File(path);
         File[] files = directory.listFiles();
-        Log.d("Files", "Size: " + files.length);
+        Arrays.sort(files, LastModifiedFileComparator.LASTMODIFIED_REVERSE);
+        Log.d("Files", "decending " + Arrays.toString(files));
         ArrayList<File> arrayList = new ArrayList<>();
         int counter = 0;
-        if (files.length >= 5) {
+        if (files.length >= 51) {
             for (File file1 : files) {
-                Log.d("Files", "FileName: " + file1.getName());
-
-                System.out.print(files.length);
-                Log.i("added", "file " + file1.getName());
-                Log.i("added", "counter " + counter);
-                if (counter >= 5) {
+                Log.e("Files", "File: " + file1.getName());
+//                Log.i("added", "file " + file1.getName());
+//                Log.i("added", "counter " + counter);
+                if (counter >= 51) {
                     if (file1.getName().contains("LOG")) {
                         arrayList.add(file1);
                         Log.i("added", "file " + file1.getName());
                     }
-                    for (File log : arrayList) {
-                        if (log.getName().contains("LOG")) {
-                            Log.i("added", "file " + log.getName());
-                            log.delete();
-                        }
-                    }
                 }
                 counter++;
+            }
+        }
+        for (File log : arrayList) {
+            if (log.getName().contains("LOG")) {
+                Log.i("DELETED", "file " + log.getName());
+                log.delete();
             }
         }
     }
