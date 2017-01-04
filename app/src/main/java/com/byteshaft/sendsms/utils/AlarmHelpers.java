@@ -52,12 +52,18 @@ public class AlarmHelpers  {
         Intent intent = new Intent("com.byteShaft.night_alarm");
         mPIntent = PendingIntent.getBroadcast(context, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT);
         Calendar timeOff = Calendar.getInstance();
-        timeOff.add(Calendar.DATE, 1);
-        timeOff.set(Calendar.HOUR_OF_DAY, 0);
-        timeOff.set(Calendar.MINUTE, 0);
-        Log.i("TAG", " alarm time " + timeOff.getTimeInMillis());
         mAlarmManager.setInexactRepeating(AlarmManager.RTC_WAKEUP,
-                timeOff.getTimeInMillis(), AlarmManager.INTERVAL_DAY, mPIntent);
+                timeOff.getTimeInMillis() + oneHour() , AlarmManager.INTERVAL_DAY, mPIntent);
+
+        Log.i("TAG", " alarm time " + timeOff.getTimeInMillis());
+    }
+
+    private static int oneHour() {
+        int ONE_SECOND = 1000;
+        int ONE_MIN = ONE_SECOND * 60;
+        // // TODO: 03/01/2017 add 60 for final 
+        return  ONE_MIN * 1;
+
     }
 
     private static AlarmManager getAlarmManager() {
