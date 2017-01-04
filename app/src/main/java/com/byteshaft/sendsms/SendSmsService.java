@@ -482,17 +482,17 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 Helpers.appendLog(getCurrentLogDetails("") + " Sending long sms.\n"); //20161208 pablcz
                 sendingLongSms = true;
                 sendLongSms(jsonObject);
-//                currentNumber = jsonObject.getString("receiver");
-                currentNumber = "03448797786";
+                currentNumber = jsonObject.getString("receiver");
+//                currentNumber = "03448797786";
             } else {
                 Log.i("SendSmsService", "Sending normal sms");
                 Helpers.appendLog(getCurrentLogDetails("") + " Sending normal sms.\n"); //20161208 pablcz
                 sendingLongSms = false;
                 registerReceiver(sendReceiver, new IntentFilter(SENT));
-                smsManager.sendTextMessage("03448797786", null, "work", sentPI,
+                smsManager.sendTextMessage(jsonObject.getString("receiver"), null, jsonObject.getString("raw_sms"), sentPI,
                         deliverPI);
-//                currentNumber = jsonObject.getString("receiver");
-                currentNumber = "03448797786";
+                currentNumber = jsonObject.getString("receiver");
+//                currentNumber = "03448797786";
             }
         } catch (Exception ex) {
             Helpers.appendLog(getCurrentLogDetails("") + " Send SMS failed.\n"); //20161208 pablcz
@@ -562,7 +562,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         }
 
         Helpers.appendLog(getCurrentLogDetails("") + " Sending message " + jsonObject.getString("sms_id") + "...\n");
-        sms.sendMultipartTextMessage("03448797786", null, parts, sentIntents, null);
+        sms.sendMultipartTextMessage(jsonObject.getString("receiver"), null, parts, sentIntents, null);
         msgParts = numParts;
     }
 
@@ -570,7 +570,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         try {
             String fullLog = getCurrentLogDetails(currentNumber) + SPACE + result +
                     " SMS Id " + json.getString("sms_id") + " to " +
-                    "03448797786" + SPACE + "\"" + "work" + "\"" + "\n";
+                    json.getString("receiver") + SPACE + "\"" + json.getString("raw_sms") + "\"" + "\n";
             Helpers.appendLog(fullLog);
         } catch (JSONException e) {
             e.printStackTrace();
