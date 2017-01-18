@@ -140,7 +140,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 queueName = parameterJosnObject.getString("queue_name");
                 String params = ", \"parameters\":" + parameters;
                 finalData = data.toString().replace("}", " ") + params + "}";
-                Log.i("TAG", "data "+ finalData);
+                Log.i("TAG", "data " + finalData);
 
             } catch (IOException e) {
                 Log.e(AppGlobals.getLOGTAG(getClass()), "Error reading file");
@@ -661,6 +661,34 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         String log;
         Calendar c = Calendar.getInstance();
         SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        log = df.format(c.getTime());
+        String time = getCurrentMinute();
+        String[] splitTime = time.split(":");
+        int minute = Integer.valueOf(splitTime[0]);
+        int seconds = Integer.valueOf(splitTime[1]);
+        if (minute > 55 && !AppGlobals.sHandlerSet) {
+            int remaining = 60 - minute;
+            int secondsLeft = 59 - seconds-10;
+            Log.i("TIME", "current "+time + "will be fire after " + remaining + " S " + secondsLeft);
+            long milliSeconds = TimeUnit.MINUTES.toMillis(remaining) + TimeUnit.SECONDS.toMillis(secondsLeft);
+            new android.os.Handler().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    sendBroadcast(new Intent("com.byteShaft.night_alarm"));
+                }
+            }, milliSeconds);
+            AppGlobals.sHandlerSet = true;
+        }
+        if (AppGlobals.sHandlerSet && minute == 59 || minute == 00) {
+            Helpers.saveFileName(Helpers.getCurrentDateAndTime());
+        }
+        return log;
+    }
+
+    private String getCurrentMinute() {
+        String log;
+        Calendar c = Calendar.getInstance();
+        SimpleDateFormat df = new SimpleDateFormat("mm:ss");
         log = df.format(c.getTime());
         return log;
     }

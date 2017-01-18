@@ -4,9 +4,13 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.os.SystemClock;
 import android.util.Log;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
 
 /**
  * Created by s9iper1 on 10/23/16.
@@ -47,15 +51,28 @@ public class AlarmHelpers  {
 //        }
 //    }
 
+    private static int getNextHour(int time) {
+        if (time == 23) {
+            return 1;
+        } else {
+            return time+1;
+        }
+    }
+
     public static void setAlarmForNewDay(Context context) {
         mAlarmManager = getAlarmManager();
         Intent intent = new Intent("com.byteShaft.night_alarm");
         mPIntent = PendingIntent.getBroadcast(context, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT);
         Calendar timeOff = Calendar.getInstance();
+        Date currentLocalTime = timeOff.getTime();
+        DateFormat date = new SimpleDateFormat("HH");
+        int localTime = Integer.parseInt(date.format(currentLocalTime));
+        System.out.print("time"+localTime);
+        timeOff.set(Calendar.HOUR_OF_DAY, getNextHour(localTime));
         mAlarmManager.setInexactRepeating(AlarmManager.RTC_WAKEUP,
-                timeOff.getTimeInMillis() + oneHour() , AlarmManager.INTERVAL_DAY, mPIntent);
-
+                timeOff.getTimeInMillis() , AlarmManager.INTERVAL_DAY, mPIntent);
         Log.i("TAG", " alarm time " + timeOff.getTimeInMillis());
+        Log.i("TAG", " alarm time "+ SystemClock.elapsedRealtime() +  timeOff.getTimeInMillis());
     }
 
     private static int oneHour() {
