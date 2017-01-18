@@ -15,6 +15,7 @@ public class AppGlobals extends Application {
     public static String sConfigFileName = "config.txt";
     public static final String KEY_FILES_CREATED = "file_created";
     public static final String KEY_SERVICE_STATE = "service_state";
+    public static boolean sHandlerSet = false;
 
     @Override
     public void onCreate() {

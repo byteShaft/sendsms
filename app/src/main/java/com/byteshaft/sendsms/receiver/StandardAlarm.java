@@ -20,6 +20,7 @@ public class StandardAlarm extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        AppGlobals.sHandlerSet = false;
         Log.i(AppGlobals.getLOGTAG(getClass()), "Alarm Received");
         Helpers.saveFileName(Helpers.getCurrentDateAndTime());
         AlarmHelpers.setAlarmForNewDay(context);
