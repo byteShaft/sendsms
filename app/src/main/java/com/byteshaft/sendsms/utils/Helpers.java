@@ -156,7 +156,7 @@ public class Helpers {
     public static String getCurrentDateAndTime() {
         Calendar c = Calendar.getInstance();
         SimpleDateFormat df = new SimpleDateFormat("yyyy_MM_dd_HH");
-        return df.format(c.getTime())+":00";
+        return df.format(c.getTime())+"_00";
 
     }
 

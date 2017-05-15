@@ -744,6 +744,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                     HttpRequest request;
                     try {
                         data.put("api_key", api_key);
+                        data.put("queue_name", queueName);
                         data.put("command", "sms_inbox_store_received_message");
                         JSONObject params = new JSONObject();
                         params.put("sender", sms.getKey());
