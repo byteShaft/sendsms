@@ -19,6 +19,8 @@ import android.widget.Toast;
 import com.byteshaft.requests.HttpRequest;
 import com.byteshaft.sendsms.utils.AppGlobals;
 import com.byteshaft.sendsms.utils.Helpers;
+import com.byteshaft.sendsms.utils.SimUtil;
+import com.byteshaft.sendsms.utils.TelephonyInfo;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -70,6 +72,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     private boolean sendingLongSms = false;
     public static String queueName = "";
     private PowerManager.WakeLock wakeLock;
+    private TelephonyInfo telephonyInfo;
 
     public static SendSmsService getInstance() {
         return instance;
@@ -83,6 +86,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         smsTobeUpload = new HashMap<>();
+        telephonyInfo = TelephonyInfo.getInstance(this);
         smsState = this;
         instance = this;
         startService();
@@ -481,18 +485,63 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 Log.i("SendSmsService", "Sending long sms");
                 Helpers.appendLog(getCurrentLogDetails("") + " Sending long sms.\n"); //20161208 pablcz
                 sendingLongSms = true;
-                sendLongSms(jsonObject);
-                currentNumber = jsonObject.getString("receiver");
-//                currentNumber = "03448797786";
+                boolean isSIM1Ready = telephonyInfo.isSIM1Ready();
+                boolean isSIM2Ready = telephonyInfo.isSIM2Ready();
+                boolean isDualSIM = telephonyInfo.isDualSIM();
+                if (!isDualSIM) {
+                    sendLongSms(jsonObject, 3);
+//                    currentNumber = jsonObject.getString("receiver");
+                currentNumber = "03448797786";
+                } else {
+                    if (isSIM1Ready) {
+                        sendLongSms(jsonObject, 0);
+//                        currentNumber = jsonObject.getString("receiver");
+                currentNumber = "03448797786";
+                    } else if (isSIM2Ready) {
+                        sendLongSms(jsonObject, 1);
+//                        currentNumber = jsonObject.getString("receiver");
+                currentNumber = "03448797786";
+                    } else {
+                        Helpers.appendLog(getCurrentLogDetails("") + " No Sim ready to send sms.\n");
+
+                    }
+                }
+
             } else {
                 Log.i("SendSmsService", "Sending normal sms");
-                Helpers.appendLog(getCurrentLogDetails("") + " Sending normal sms.\n"); //20161208 pablcz
                 sendingLongSms = false;
                 registerReceiver(sendReceiver, new IntentFilter(SENT));
-                smsManager.sendTextMessage(jsonObject.getString("receiver"), null, jsonObject.getString("raw_sms"), sentPI,
-                        deliverPI);
-                currentNumber = jsonObject.getString("receiver");
-//                currentNumber = "03448797786";
+                boolean isSIM1Ready = telephonyInfo.isSIM1Ready();
+                boolean isSIM2Ready = telephonyInfo.isSIM2Ready();
+                boolean isDualSIM = telephonyInfo.isDualSIM();
+                if (!isDualSIM) {
+                    Helpers.appendLog(getCurrentLogDetails("") + " Sending normal sms.\n"); //20161208 pablcz
+                    smsManager.sendTextMessage("03448797786", null,
+                            jsonObject.getString("raw_sms"), sentPI,
+                            deliverPI);
+//                    currentNumber = jsonObject.getString("receiver");
+                currentNumber = "03448797786";
+                } else {
+                    if (isSIM1Ready) {
+                        Helpers.appendLog(getCurrentLogDetails("") + " Sending normal sms via Sim 1.\n");
+                        SimUtil.sendSMS(getApplicationContext(), 0, "03448797786", null,
+                                jsonObject.getString("raw_sms"), sentPI,
+                                deliverPI);
+//                        currentNumber = jsonObject.getString("receiver");
+                currentNumber = "03448797786";
+                    } else if (isSIM2Ready) {
+                        Helpers.appendLog(getCurrentLogDetails("") + " Sending normal sms via Sim 2.\n");
+                        SimUtil.sendSMS(getApplicationContext(), 0, "03448797786", null,
+                                jsonObject.getString("raw_sms"), sentPI,
+                                deliverPI);
+//                        currentNumber = jsonObject.getString("receiver");
+                currentNumber = "03448797786";
+                    } else {
+                        Helpers.appendLog(getCurrentLogDetails("") + " No Sim ready to send sms.\n");
+
+                    }
+                }
+
             }
         } catch (Exception ex) {
             Helpers.appendLog(getCurrentLogDetails("") + " Send SMS failed.\n"); //20161208 pablcz
@@ -504,7 +553,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         return status;
     }
 
-    private void sendLongSms(final JSONObject jsonObject) throws JSONException {
+    private void sendLongSms(final JSONObject jsonObject, int simId) throws JSONException {
         SmsManager sms = SmsManager.getDefault();
         ArrayList<String> parts = sms.divideMessage(jsonObject.getString("raw_sms"));
         final int numParts = parts.size();
@@ -561,8 +610,22 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                     LONG_MESSAGE_SENT_ACTION), 0));
         }
 
-        Helpers.appendLog(getCurrentLogDetails("") + " Sending message " + jsonObject.getString("sms_id") + "...\n");
-        sms.sendMultipartTextMessage(jsonObject.getString("receiver"), null, parts, sentIntents, null);
+        if (simId == 0 || simId == 1) {
+            SimUtil.sendMultipartTextSMS(getApplicationContext(), simId,"03448797786", null,
+                    parts, sentIntents, null);
+            if (simId == 0) {
+                Helpers.appendLog(getCurrentLogDetails("") + " Sending message " +
+                        jsonObject.getString("sms_id") + " via Sim 1" +"...\n");
+            } else {
+                Helpers.appendLog(getCurrentLogDetails("") + " Sending message " +
+                        jsonObject.getString("sms_id") + " via Sim 2" +"...\n");
+            }
+
+        } else {
+            Helpers.appendLog(getCurrentLogDetails("") + " Sending message " +
+                    jsonObject.getString("sms_id") + "...\n");
+            sms.sendMultipartTextMessage("03448797786", null, parts, sentIntents, null);
+        }
         msgParts = numParts;
     }
 
