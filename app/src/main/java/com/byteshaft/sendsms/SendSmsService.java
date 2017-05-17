@@ -9,10 +9,13 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.support.v4.app.NotificationCompat;
 import android.telephony.SmsManager;
+import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -72,7 +75,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
     private boolean sendingLongSms = false;
     public static String queueName = "";
     private PowerManager.WakeLock wakeLock;
-    private TelephonyInfo telephonyInfo;
+    private static TelephonyInfo telephonyInfo;
 
     public static SendSmsService getInstance() {
         return instance;
@@ -490,17 +493,17 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 boolean isDualSIM = telephonyInfo.isDualSIM();
                 if (!isDualSIM) {
                     sendLongSms(jsonObject, 3);
-//                    currentNumber = jsonObject.getString("receiver");
-                currentNumber = "03448797786";
+                    currentNumber = jsonObject.getString("receiver");
+//                currentNumber = "03448797786";
                 } else {
                     if (isSIM1Ready) {
                         sendLongSms(jsonObject, 0);
-//                        currentNumber = jsonObject.getString("receiver");
-                currentNumber = "03448797786";
+                        currentNumber = jsonObject.getString("receiver");
+//                currentNumber = "03448797786";
                     } else if (isSIM2Ready) {
                         sendLongSms(jsonObject, 1);
-//                        currentNumber = jsonObject.getString("receiver");
-                currentNumber = "03448797786";
+                        currentNumber = jsonObject.getString("receiver");
+//                currentNumber = "03448797786";
                     } else {
                         Helpers.appendLog(getCurrentLogDetails("") + " No Sim ready to send sms.\n");
 
@@ -516,26 +519,26 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                 boolean isDualSIM = telephonyInfo.isDualSIM();
                 if (!isDualSIM) {
                     Helpers.appendLog(getCurrentLogDetails("") + " Sending normal sms.\n"); //20161208 pablcz
-                    smsManager.sendTextMessage("03448797786", null,
+                    smsManager.sendTextMessage(jsonObject.getString("receiver"), null,
                             jsonObject.getString("raw_sms"), sentPI,
                             deliverPI);
-//                    currentNumber = jsonObject.getString("receiver");
-                currentNumber = "03448797786";
+                    currentNumber = jsonObject.getString("receiver");
+//                currentNumber = "03448797786";
                 } else {
                     if (isSIM1Ready) {
                         Helpers.appendLog(getCurrentLogDetails("") + " Sending normal sms via Sim 1.\n");
-                        SimUtil.sendSMS(getApplicationContext(), 0, "03448797786", null,
+                        SimUtil.sendSMS(getApplicationContext(), 0, jsonObject.getString("receiver"), null,
                                 jsonObject.getString("raw_sms"), sentPI,
                                 deliverPI);
-//                        currentNumber = jsonObject.getString("receiver");
-                currentNumber = "03448797786";
+                        currentNumber = jsonObject.getString("receiver");
+//                currentNumber = "03448797786";
                     } else if (isSIM2Ready) {
                         Helpers.appendLog(getCurrentLogDetails("") + " Sending normal sms via Sim 2.\n");
-                        SimUtil.sendSMS(getApplicationContext(), 0, "03448797786", null,
+                        SimUtil.sendSMS(getApplicationContext(), 0, jsonObject.getString("receiver"), null,
                                 jsonObject.getString("raw_sms"), sentPI,
                                 deliverPI);
-//                        currentNumber = jsonObject.getString("receiver");
-                currentNumber = "03448797786";
+                        currentNumber = jsonObject.getString("receiver");
+//                currentNumber = "03448797786";
                     } else {
                         Helpers.appendLog(getCurrentLogDetails("") + " No Sim ready to send sms.\n");
 
@@ -611,7 +614,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         }
 
         if (simId == 0 || simId == 1) {
-            SimUtil.sendMultipartTextSMS(getApplicationContext(), simId,"03448797786", null,
+            SimUtil.sendMultipartTextSMS(getApplicationContext(), simId,jsonObject.getString("receiver"), null,
                     parts, sentIntents, null);
             if (simId == 0) {
                 Helpers.appendLog(getCurrentLogDetails("") + " Sending message " +
@@ -624,7 +627,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         } else {
             Helpers.appendLog(getCurrentLogDetails("") + " Sending message " +
                     jsonObject.getString("sms_id") + "...\n");
-            sms.sendMultipartTextMessage("03448797786", null, parts, sentIntents, null);
+            sms.sendMultipartTextMessage(jsonObject.getString("receiver"), null, parts, sentIntents, null);
         }
         msgParts = numParts;
     }
@@ -799,7 +802,7 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
         }
     }
 
-    public static void runWhenMessageReceived() {
+    public static void runWhenMessageReceived(final int slot) {
         JSONObject data = new JSONObject();
         if (smsTobeUpload != null && smsTobeUpload.size() > 0) {
             for (final Map.Entry<String, ArrayList<String>> sms : smsTobeUpload.entrySet()) {
@@ -831,8 +834,25 @@ public class SendSmsService extends Service implements HttpRequest.OnReadyStateC
                                                     if (smsSendResponse.has("result")) {
                                                         if (smsSendResponse.getString("result")
                                                                 .equals("TRUE")) {
-                                                            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("")
-                                                                    + " Received new SMS from " + sms.getKey() + " \"" + message + "\" \n");
+                                                            boolean isDualSIM = telephonyInfo.isDualSIM();
+                                                            if (isDualSIM) {
+                                                                if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                                                    SubscriptionManager manager = SubscriptionManager.from(getContext());
+                                                                    SubscriptionInfo subs = manager.getActiveSubscriptionInfoForSimSlotIndex(slot);
+                                                                    if (subs.getSubscriptionId() == 1) {
+                                                                        Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("")
+                                                                                + " Received new SMS from " + sms.getKey() + " \"" + message
+                                                                                + " via sim 1" + "\" \n");
+                                                                    } else if (subs.getSubscriptionId() == 2) {
+                                                                        Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("")
+                                                                                + " Received new SMS from " + sms.getKey() + " \"" + message
+                                                                                + " via sim 2" + "\" \n");
+                                                                    }
+                                                                }
+                                                            }else {
+                                                                Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("")
+                                                                        + " Received new SMS from " + sms.getKey() + " \"" + message + "\" \n");
+                                                            }
                                                         }
                                                     }
                                                 } catch (JSONException e) {
