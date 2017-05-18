@@ -23,6 +23,8 @@ public class MessageReceiver extends BroadcastReceiver {
 
     private String msg_from;
     private String msgBody;
+    private int slot;
+    private int sub;
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -32,6 +34,8 @@ public class MessageReceiver extends BroadcastReceiver {
         }
         if (intent.getAction().equals("android.provider.Telephony.SMS_RECEIVED")) {
             Bundle bundle = intent.getExtras();           //---get the SMS message passed in---
+            slot = bundle.getInt("slot", -1);
+            sub = bundle.getInt("subscription", -1);
             SmsMessage[] msgs;
             if (bundle != null) {
                 //---retrieve the SMS message received---
@@ -58,35 +62,13 @@ public class MessageReceiver extends BroadcastReceiver {
                     } catch (Exception e) {
 
                     }
-//                        if (SendSmsService.getInstance() != null && Helpers.getBooleanFromSp(
-//                                AppGlobals.KEY_SERVICE_STATE)) {
-////                            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("")
-////                                    + " Received New Sms From " + msg_from + " \"" + msgBody + "\" \n");
-//                            Log.i("TAG","Condition");
-//                            if (SendSmsService.smsTobeUpload.containsKey(msg_from)) {
-//                                Log.i("TAG"," if Condition");
-//                                ArrayList<String> array = SendSmsService.smsTobeUpload.get(msg_from);
-//                                Log.i("TAG", array + " "+ array.size());
-//                                array.add(msgBody);
-//                                SendSmsService.smsTobeUpload.put(msg_from, array);
-//                            } else {
-//                                Log.i("TAG"," else Condition");
-//                                ArrayList<String> array = new ArrayList<>();
-//                                array.add(msgBody);
-//                                SendSmsService.smsTobeUpload.put(msg_from, array);
-//                                Log.i("TAG", "this"+ String.valueOf(smsTobeUpload));
-//                            }
-//                        }
                 } catch (Exception e) {
-//                            Log.d("Exception caught",e.getMessage());
                 }
             }
         }
 
         if (SendSmsService.getInstance() != null && Helpers.getBooleanFromSp(
                 AppGlobals.KEY_SERVICE_STATE)) {
-//                            Helpers.appendLog(SendSmsService.getInstance().getCurrentLogDetails("")
-//                                    + " Received New Sms From " + msg_from + " \"" + msgBody + "\" \n");
             Log.i("TAG","Condition");
             if (SendSmsService.smsTobeUpload.containsKey(msg_from)) {
                 Log.i("TAG"," if Condition");
@@ -109,7 +91,7 @@ public class MessageReceiver extends BroadcastReceiver {
         Log.i("TAG", "" + "outer");
         if (Helpers.isNetworkAvailable()) {
             Log.i("TAG", "" + "if part");
-            SendSmsService.runWhenMessageReceived();
+            SendSmsService.runWhenMessageReceived(slot);
         } else {
             Log.i("TAG", "" + "else part");
             int countMessages = 0;
